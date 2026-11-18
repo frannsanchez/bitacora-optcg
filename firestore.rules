@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Reglas de seguridad de Bitácora OPTCG.
+// Se pegan en Firebase → Firestore Database → Reglas → Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // CAMBIÁ ESTE CÓDIGO por el de tu grupo. Es lo que les pasás a tus amigos para que puedan crear su usuario.
+    // Si lo cambiás después, los que ya están en el grupo siguen entrando normalmente.
+    function codigoDelGrupo() { return 'CAMBIAR-ESTE-CODIGO'; }
+
+    function logueado() { return request.auth != null; }
+    function miembro() {
+      return logueado() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function mazoValido() {
+      let d = request.resource.data;
+      return d.owner == request.auth.uid
+        && d.name is string && d.name.size() <= 80
+        && d.cards is list && d.cards.size() <= 80;
+    }
+
+    // Perfil de cada jugador: solo se crea con el código del grupo y con su propio nombre de usuario.
+    match /users/{uid} {
+      allow read: if miembro();
+      allow create: if logueado() && request.auth.uid == uid
+        && request.resource.data.codigo == codigoDelGrupo()
+        && request.resource.data.username == request.auth.token.email.split('@')[0];
+      allow update: if logueado() && request.auth.uid == uid
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.codigo == resource.data.codigo;
+      allow delete: if false;
+    }
+
+    // Mazos: los ve todo el grupo; solo su dueño los crea, cambia o borra.
+    match /decks/{deckId} {
+      allow read: if miembro();
+      allow create: if miembro() && mazoValido();
+      allow update: if miembro() && resource.data.owner == request.auth.uid && mazoValido();
+      allow delete: if miembro() && resource.data.owner == request.auth.uid;
+    }
+  }
+}

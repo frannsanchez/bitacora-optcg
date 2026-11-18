@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bitácora OPTCG</title>
+<meta name="description" content="Precio de tus mazos de One Piece Card Game en TCGplayer y calculadora de letal.">
+<meta name="theme-color" content="#091432">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bitácora">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="icon" href="img/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body data-view="inicio">
+<aside class="side">
+  <a class="brand" href="#inicio"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.5" fill="#10224C" stroke="#D8B24A" stroke-width="1.5"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="#D8B24A" stroke-opacity=".45"/><path d="M20 4.5 23 17 35.5 20 23 23 20 35.5 17 23 4.5 20 17 17Z" fill="#D8B24A"/><path d="M20 4.5 23 17 20 20ZM35.5 20 23 23 20 20ZM20 35.5 17 23 20 20ZM4.5 20 17 17 20 20Z" fill="#F0D98C"/><circle cx="20" cy="20" r="2" fill="#091432"/></svg><span class="brand-name">Bitácora <span>OPTCG</span></span></a>
+  <nav id="nav-side" aria-label="Herramientas"></nav>
+  <p class="side-foot">Precios de TCGplayer vía TCGCSV, en dólares y sin envío. App de fans, sin relación con Bandai ni con TCGplayer.</p>
+</aside>
+<header class="bar">
+  <a class="brand" href="#inicio"><svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.5" fill="#10224C" stroke="#D8B24A" stroke-width="1.5"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="#D8B24A" stroke-opacity=".45"/><path d="M20 4.5 23 17 35.5 20 23 23 20 35.5 17 23 4.5 20 17 17Z" fill="#D8B24A"/><path d="M20 4.5 23 17 20 20ZM35.5 20 23 23 20 20ZM20 35.5 17 23 20 20ZM4.5 20 17 17 20 20Z" fill="#F0D98C"/><circle cx="20" cy="20" r="2" fill="#091432"/></svg><span class="brand-name">Bitácora <span>OPTCG</span></span></a>
+  <span class="bar-title" id="bar-title"></span>
+  <a class="acct" id="acct-btn" href="#cuenta" hidden>Entrar</a>
+</header>
+
+<main id="main">
+  <section class="view" id="view-inicio" hidden></section>
+  <section class="view" id="view-mazos" hidden></section>
+  <section class="view" id="view-mazo" hidden></section>
+  <section class="view" id="view-buscar" hidden></section>
+  <section class="view" id="view-letal" hidden>
+    <div class="vhead">
+      <div><h1>Calculadora de letal</h1><p>Cargá la mesa y te dice si llegás, cómo repartir los DON!! y en qué orden atacar.</p></div>
+      <div class="vact">
+        <button type="button" class="btn ghost" id="btn-example">Cargar ejemplo</button>
+        <button type="button" class="btn ghost" id="btn-reset">Empezar de cero</button>
+      </div>
+    </div>
+    <div class="letal-grid">
+      <div class="letal-in">
+<section class="card" aria-labelledby="h-rival">
+    <h2 id="h-rival"><span class="n">1</span>Rival</h2>
+    <div class="rows">
+      <div class="row">
+        <div class="lbl"><label for="f-life">Vidas</label></div>
+        <div class="stepper" data-path="opp.life" data-min="0" data-max="8" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-life" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="row">
+        <div class="lbl"><label for="f-lpow">Poder de su líder</label><small>Con los efectos que tenga activos</small></div>
+        <div class="stepper" data-path="opp.leaderPower" data-min="0" data-max="15000" data-step="1000"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-lpow" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="row">
+        <div class="lbl"><label for="f-hand">Cartas en mano</label></div>
+        <div class="stepper" data-path="opp.hand" data-min="0" data-max="15" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-hand" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="row">
+        <div class="lbl"><label for="f-odon">DON!! activos</label><small>Los que dejó sin usar: pagan eventos de counter</small></div>
+        <div class="stepper" data-path="opp.don" data-min="0" data-max="10" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-odon" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="row">
+        <div class="lbl"><label for="f-blk">Blockers activos</label></div>
+        <div class="stepper" data-path="opp.blockers" data-min="0" data-max="6" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-blk" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="row col">
+        <div class="lbl"><span class="t" id="l-prof">Su mano suele traer</span><small>Qué tan seguido juega counters de 2000</small></div>
+        <div class="seg" role="radiogroup" aria-labelledby="l-prof" data-path="opp.profile">
+          <button type="button" role="radio" data-v="fuerte">Muchos 2000</button>
+          <button type="button" role="radio" data-v="normal">Normal</button>
+          <button type="button" role="radio" data-v="debil">Pocos 2000</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lbl"><label for="f-ev">Eventos de counter</label><small>Cuántos sospechás que tiene en la mano</small></div>
+        <div class="stepper" data-path="opp.events" data-min="0" data-max="4" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-ev" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="sub" data-show="events">
+        <div class="row col">
+          <div class="lbl"><span class="t" id="l-evv">Cada evento suma</span></div>
+          <div class="seg" role="radiogroup" aria-labelledby="l-evv" data-path="opp.eventValue" data-num="1">
+            <button type="button" role="radio" data-v="2000">+2000</button>
+            <button type="button" role="radio" data-v="3000">+3000</button>
+            <button type="button" role="radio" data-v="4000">+4000</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="lbl"><label for="f-evc">Costo de cada evento</label><small>En DON!!</small></div>
+          <div class="stepper sm" data-path="opp.eventCost" data-min="0" data-max="3" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-evc" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+        </div>
+      </div>
+      <div class="row">
+        <label class="switch" for="f-lfx" style="flex:1">
+          <span class="lbl"><span class="t">Su líder se defiende</span><small>Efecto de una vez por turno que le suma poder o te lo resta a vos (ej. Barbablanca OP17-001: +4000 descartando)</small></span>
+          <input type="checkbox" id="f-lfx" data-path="opp.leaderFx"><span class="track" aria-hidden="true"></span>
+        </label>
+      </div>
+      <div class="sub" data-show="lfx">
+        <div class="row col">
+          <div class="lbl"><span class="t" id="l-lfv">El efecto vale</span></div>
+          <div class="seg" role="radiogroup" aria-labelledby="l-lfv" data-path="opp.leaderFxValue" data-num="1">
+            <button type="button" role="radio" data-v="1000">+1000</button>
+            <button type="button" role="radio" data-v="2000">+2000</button>
+            <button type="button" role="radio" data-v="3000">+3000</button>
+            <button type="button" role="radio" data-v="4000">+4000</button>
+            <button type="button" role="radio" data-v="5000">+5000</button>
+          </div>
+        </div>
+        <div class="row">
+          <label class="switch" for="f-lfd" style="flex:1">
+            <span class="lbl"><span class="t">Cuesta descartar 1 carta</span></span>
+            <input type="checkbox" id="f-lfd" data-path="opp.leaderFxDiscard"><span class="track" aria-hidden="true"></span>
+          </label>
+        </div>
+      </div>
+      <div class="row col">
+        <div class="lbl"><span class="t" id="l-trig">Triggers peligrosos en su mazo</span><small>Los que te sacan un atacante o le ponen un blocker</small></div>
+        <div class="seg" role="radiogroup" aria-labelledby="l-trig" data-path="opp.triggers">
+          <button type="button" role="radio" data-v="ninguno">Ninguno</button>
+          <button type="button" role="radio" data-v="pocos">Pocos</button>
+          <button type="button" role="radio" data-v="algunos">Algunos</button>
+          <button type="button" role="radio" data-v="muchos">Muchos</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-atk">
+    <h2 id="h-atk"><span class="n">2</span>Tus atacantes</h2>
+    <p class="hint">Poder: base más los DON!! que ya le pusiste. Buff: efectos de este turno, como el +6000 del líder.</p>
+    <div class="list" id="atk-list"></div>
+    <button type="button" class="add" id="add-atk">+ Agregar personaje</button>
+    <button type="button" class="add" id="add-leader" hidden>+ Agregar líder</button>
+    <div class="rows">
+      <div class="row">
+        <div class="lbl"><label for="f-don">DON!! libres para repartir</label><small>Los que te quedan después de pagar cartas y efectos</small></div>
+        <div class="stepper" data-path="me.freeDon" data-min="0" data-max="10" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-don" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+      <div class="row">
+        <div class="lbl"><label for="f-rm">Blockers que le podés sacar</label><small>Con K.O., descansar o devolver antes de atacar</small></div>
+        <div class="stepper" data-path="me.removeBlockers" data-min="0" data-max="6" data-step="1"><button type="button" data-d="-1" aria-label="Restar">−</button><input id="f-rm" inputmode="numeric" autocomplete="off"><button type="button" data-d="1" aria-label="Sumar">+</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-board">
+    <h2 id="h-board"><span class="n">3</span>Mesa del rival</h2>
+    <p class="hint">Solo personajes descansados: son los únicos que podés atacar. Sirve para decidir si conviene pegarle a su mesa en vez de a la vida.</p>
+    <div class="list" id="board-list"></div>
+    <button type="button" class="add" id="add-board">+ Agregar personaje descansado</button>
+  </section>
+
+  <section class="card" aria-labelledby="h-ctx">
+    <h2 id="h-ctx"><span class="n">4</span>Contexto</h2>
+    <div class="rows">
+      <div class="row col">
+        <div class="lbl"><span class="t" id="l-thr">¿Te puede matar en su próximo turno?</span></div>
+        <div class="seg" role="radiogroup" aria-labelledby="l-thr" data-path="me.oppThreat">
+          <button type="button" role="radio" data-v="no">No</button>
+          <button type="button" role="radio" data-v="quizas">Quizás</button>
+          <button type="button" role="radio" data-v="si">Sí</button>
+        </div>
+      </div>
+      <div class="row">
+        <label class="switch" for="f-better" style="flex:1">
+          <span class="lbl"><span class="t">Tu próximo turno viene mejor</span><small>Más DON!!, un buff o remoción que hoy no tenés</small></span>
+          <input type="checkbox" id="f-better" data-path="me.betterNext"><span class="track" aria-hidden="true"></span>
+        </label>
+      </div>
+    </div>
+  </section>
+      </div>
+      <div class="letal-out">
+<section class="card result" id="resultado" aria-labelledby="h-res">
+    <h2 id="h-res"><span class="n">5</span>Resultado</h2>
+    <div id="res-body"><p class="calc">Calculando…</p></div>
+  </section>
+      </div>
+    </div>
+    <div class="dock" id="dock">
+  <div class="dock-in tone-bad" id="dock-in">
+    <span class="stripe" aria-hidden="true"></span>
+    <div class="v" role="status" aria-live="polite"><span class="lab" id="dock-lab">Calculando</span><span class="s" id="dock-sub"></span></div>
+    <button type="button" class="dock-btn" id="dock-btn">Ver plan</button>
+  </div>
+</div>
+  </section>
+  <section class="view" id="view-grupo" hidden></section>
+  <section class="view" id="view-cuenta" hidden></section>
+  <section class="view" id="view-ajustes" hidden></section>
+</main>
+
+<nav class="tabbar" id="nav-tab" aria-label="Herramientas"></nav>
+<div class="toast" id="toast" role="status" hidden><span id="toast-txt"></span><button type="button" id="toast-btn">Deshacer</button></div>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/mazos.js"></script>
+<script src="js/buscar.js"></script>
+<script src="js/letal-engine.js"></script>
+<script src="js/letal.js"></script>
+<script src="js/nube.js"></script>
+<script src="js/ajustes.js"></script>
+<script>App.start(); Cloud.boot();</script>
+</body>
+</html>
