@@ -1,0 +1,40 @@
+# Publica la app en GitHub Pages con los precios del día.
+# Corre sola todos los días, cada vez que subís un cambio, o a mano desde la pestaña Actions.
+name: Publicar app y precios
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 3 * * *'   # todos los días 03:23 UTC (00:23 en Argentina), después de que se actualiza TCGCSV
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Bajar precios de TCGCSV
+        run: node scripts/sync.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
