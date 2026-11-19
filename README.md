@@ -26,7 +26,7 @@ Los usuarios y las listas compartidas se guardan en **Firebase**, un servicio gr
 1. Entrá a [console.firebase.google.com](https://console.firebase.google.com) con tu cuenta de Google y tocá **Crear un proyecto**. Nombre: `bitacora-optcg`. Google Analytics no hace falta.
 2. En el menú de la izquierda: **Compilación → Authentication → Comenzar**. En **Método de acceso** elegí **Correo electrónico/contraseña**, activalo y guardá. (La app usa usuario y contraseña; el “correo” lo arma sola y nunca se manda nada.)
 3. **Compilación → Firestore Database → Crear base de datos**. Ubicación: `southamerica-east1 (São Paulo)`. Empezá en **modo de producción**.
-4. En Firestore, pestaña **Reglas**: borrá lo que hay, pegá todo el archivo `firestore.rules` de esta carpeta, **cambiá `CAMBIAR-ESTE-CODIGO` por el código de tu grupo** y tocá **Publicar**.
+4. En Firestore, pestaña **Reglas**: borrá lo que hay, pegá todo el archivo `firestore.rules` de esta carpeta, **cambiá `CAMBIAR-ESTE-CODIGO` por el código de tu grupo en minúsculas, sin tildes ni espacios** (por ejemplo `laforja`) y tocá **Publicar**. La app no distingue mayúsculas ni espacios, así que tus amigos pueden escribirlo como quieran.
 5. Tocá el engranaje → **Configuración del proyecto** → abajo, en **Tus apps**, el ícono **</>** (web). Ponele `Bitácora` y registrala. Te muestra un bloque `firebaseConfig`.
 6. En GitHub abrí `site/js/firebase-config.js`, tocá el lápiz y reemplazá cada `PEGAR_AQUI` por los valores de `apiKey`, `authDomain`, `projectId` y `appId`. Tocá **Commit changes**: la app se vuelve a publicar sola.
 7. En Firebase: **Authentication → Configuración → Dominios autorizados → Agregar dominio** y poné `TU-USUARIO.github.io`.

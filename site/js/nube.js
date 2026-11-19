@@ -16,6 +16,8 @@ const Cloud = (() => {
 
   const emit = () => { App.emit('cloud', st); paintAccount(); };
   const normUser = u => String(u || '').trim().toLowerCase();
+  // el código del grupo no distingue mayúsculas, tildes ni espacios: "La Forja" = "laforja"
+  const normCode = c => String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '');
   const toEmail = u => `${u}@${DOMAIN}`;
 
   function friendly(e) {
@@ -76,7 +78,7 @@ const Cloud = (() => {
     username = normUser(username);
     if (!USER_RE.test(username)) throw new Error('El usuario tiene que tener de 3 a 20 letras, números, puntos, guiones o guiones bajos, sin espacios.');
     if (String(password).length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres.');
-    if (!String(code || '').trim()) throw new Error('Falta el código del grupo.');
+    if (!normCode(code)) throw new Error('Falta el código del grupo.');
     const { A, F, auth, db } = fb;
     busySignup = true;
     try {
@@ -91,7 +93,7 @@ const Cloud = (() => {
         if (exists) { busySignup = false; await onUser(cred.user); return; }
       }
       try {
-        await F.setDoc(F.doc(db, 'users', cred.user.uid), { username, codigo: String(code).trim(), creado: new Date().toISOString() });
+        await F.setDoc(F.doc(db, 'users', cred.user.uid), { username, codigo: normCode(code), creado: new Date().toISOString() });
       } catch (e) {
         if (/permission-denied/.test(e.code || '')) { await A.signOut(auth); throw new Error('El código del grupo no es correcto.'); }
         throw e;
@@ -106,7 +108,7 @@ const Cloud = (() => {
   async function completeProfile(code) {
     const { F, db, auth } = fb;
     try {
-      await F.setDoc(F.doc(db, 'users', me.uid), { username: me.username, codigo: String(code || '').trim(), creado: new Date().toISOString() });
+      await F.setDoc(F.doc(db, 'users', me.uid), { username: me.username, codigo: normCode(code), creado: new Date().toISOString() });
     } catch (e) { throw new Error(/permission-denied/.test(e.code || '') ? 'El código del grupo no es correcto.' : friendly(e)); }
     await onUser(auth.currentUser);
   }

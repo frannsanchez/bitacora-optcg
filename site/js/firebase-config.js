@@ -1,9 +1,9 @@
-/* Datos de tu proyecto de Firebase (Configuración del proyecto → Tus apps → app web → firebaseConfig).
-   No son secretos: lo que protege los datos son las reglas de firestore.rules.
-   Mientras diga PEGAR_AQUI, la app funciona igual pero sin usuarios ni grupo. */
+/* Datos del proyecto de Firebase "bitacora-optcg".
+   No son secretos: lo que protege los datos son las reglas de firestore.rules
+   (cargadas en la consola de Firebase, con el código real del grupo). */
 window.BITACORA_FIREBASE = {
-  apiKey: 'PEGAR_AQUI',
-  authDomain: 'PEGAR_AQUI.firebaseapp.com',
-  projectId: 'PEGAR_AQUI',
-  appId: 'PEGAR_AQUI',
+  apiKey: 'AIzaSyCDAW-npH1pA8x4reSReepxXeZzMFwBjdw',
+  authDomain: 'bitacora-optcg.firebaseapp.com',
+  projectId: 'bitacora-optcg',
+  appId: '1:758120771311:web:51e384e675217110ea751a',
 };

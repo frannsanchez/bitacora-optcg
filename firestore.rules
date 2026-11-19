@@ -5,8 +5,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // CAMBIÁ ESTE CÓDIGO por el de tu grupo. Es lo que les pasás a tus amigos para que puedan crear su usuario.
-    // Si lo cambiás después, los que ya están en el grupo siguen entrando normalmente.
+    // CAMBIÁ ESTE CÓDIGO por el de tu grupo, en minúsculas, sin tildes ni espacios (la app lo manda así
+    // aunque lo escriban "La Forja"). Es lo que les pasás a tus amigos para crear su usuario. Este archivo es público: el código
+    // real va solo en la consola de Firebase. Si lo cambiás, los que ya están en el grupo siguen entrando.
     function codigoDelGrupo() { return 'CAMBIAR-ESTE-CODIGO'; }
 
     function logueado() { return request.auth != null; }
