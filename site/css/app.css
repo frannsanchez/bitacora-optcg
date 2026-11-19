@@ -521,3 +521,40 @@ body[data-view="letal"] { padding-bottom: calc(var(--tab-h) + 100px + env(safe-a
 .okdot { width: 28px; height: 28px; border-radius: 50%; background: var(--ok); color: var(--bg); display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
 .mailcard details .auth { margin-top: 12px; }
 .opt-l { font-weight: 400; color: var(--muted); }
+
+/* ---- grupos ---- */
+.gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
+.gcard { display: grid; gap: 6px; padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; }
+.gcard:hover { border-color: var(--accent); }
+.gname { font-family: var(--f-display); font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.gcard small { color: var(--muted); font-size: 14px; }
+.gmembers { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.avatar.mini { width: 28px; height: 28px; font-size: 13px; border-width: 1px; }
+.group-top { display: grid; gap: 10px; }
+.gt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gt-head h1 { margin: 0; font-family: var(--f-display); font-size: 28px; overflow-wrap: anywhere; }
+.group-top .note { margin: 0; }
+.btn.small { min-height: 34px; padding: 4px 12px; font-size: 14px; }
+.auth.inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; max-width: none; }
+.auth.inline .field { flex: 1 1 200px; }
+.auth.inline .banner { flex-basis: 100%; }
+.invite { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px dashed var(--accent); background: rgba(216, 178, 74, .08); }
+.invite .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; color: var(--accent-2); letter-spacing: .03em; overflow-wrap: anywhere; }
+.invite .vact { margin: 0; }
+.owner-t { font-weight: 600; color: var(--accent-2); font-size: 12px; margin-left: 4px; }
+.card.leave { margin-top: 18px; }
+.btn.danger:not(.ghost) { background: var(--bad); border-color: var(--bad); color: #2B0B10; }
+/* compartir un mazo */
+.share-card { display: grid; gap: 10px; }
+.share-card h2, .share-card .note { margin: 0; }
+.share-list { display: grid; gap: 8px; }
+.share-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+.share-row input { width: 22px; height: 22px; accent-color: var(--accent); flex-shrink: 0; }
+.share-row span { display: grid; min-width: 0; }
+.share-row b { overflow-wrap: anywhere; }
+.share-row small { color: var(--muted); font-size: 13px; }
+.share-row:has(input:checked) { border-color: var(--accent); }
+.rgroup { font-size: 12px; color: var(--accent-2); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; }
+.shared-l { font-size: 13px; color: var(--muted); }
+.shared-l.on { color: var(--accent-2); }
+.app-version { text-align: center; font-size: 13px; }

@@ -87,11 +87,12 @@ App.register({
   init(el) {
     this.el = el;
     const again = () => { if (App.currentId() === 'mazos') this.show(); };
-    App.on('prices', again); App.on('settings', again); App.on('decks', again); App.on('cards', again);
+    App.on('prices', again); App.on('settings', again); App.on('decks', again); App.on('cards', again); App.on('group', again);
   },
   show() {
     const { esc, money, Prices, plural } = App;
     App.Cards.load(); // nombres e imágenes de los líderes
+    if (typeof Cloud !== 'undefined' && Cloud.state.status === 'in') Cloud.loadGroups(); // nombres de los grupos donde compartiste
     const decks = Decks.all();
     const ready = Prices.state === 'ok';
     const items = decks.map(d => {
@@ -103,6 +104,7 @@ App.register({
         <span class="dinfo">
           <b>${esc(d.name)}${d.ejemplo ? '<span class="badge soft">Ejemplo</span>' : ''}</b>
           <small>${lname ? `Líder: ${esc(lname)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</small>
+          ${(lab => (lab ? `<small class="shared-l${lab === 'Privado' ? '' : ' on'}">${esc(lab)}</small>` : ''))(typeof Cloud !== 'undefined' ? Cloud.shareLabel(d) : '')}
           ${p ? `<span class="price">${money(p.total)}</span>${p.missing ? `<small>${plural(p.missing, 'carta', 'cartas')} sin precio</small>` : ''}`
               : `<span class="price none">${esc(Prices.state === 'loading' ? 'Calculando…' : 'Sin precios todavía')}</span>`}
         </span>
@@ -200,22 +202,26 @@ App.register({
     }
     this.render();
     // las valoraciones que recibió (si está en la nube)
-    if (this.deck && this.deck.synced && typeof Cloud !== 'undefined' && Cloud.state.status === 'in') Cloud.loadGroup();
+    // en qué grupos está compartido y las valoraciones que recibió
+    if (this.deck && typeof Cloud !== 'undefined' && Cloud.state.status === 'in') Cloud.loadGroups();
   },
-  // mazo de otro jugador del grupo: se ve con precios pero no se edita
-  showShared(id) {
+  // mazo que alguien compartió en un grupo (#mazo/nube:<grupo>:<mazo>): se ve con precios pero no se edita
+  showShared(ref) {
     this.ro = true; this.isNew = false; this.editing = false; this.open = new Set();
+    const [gid, id] = String(ref).split(':');
+    this.gid = gid;
     const cloud = typeof Cloud !== 'undefined' ? Cloud : null;
-    const find = () => (cloud ? cloud.groupDeck(id) : null);
+    const find = () => (cloud ? cloud.groupDeck(gid, id) : null);
     this.deck = find();
     if (this.deck) { this.render(); return; }
-    const msg = t => { this.el.innerHTML = `<a class="back" href="#grupo">← Grupo</a><div class="card"><p class="note">${t}</p></div>`; };
+    const back = `<a class="back" href="#grupo/${encodeURIComponent(gid)}">← Grupo</a>`;
+    const msg = t => { this.el.innerHTML = `${back}<div class="card"><p class="note">${t}</p></div>`; };
     msg('Cargando el mazo…');
-    if (!cloud) return msg('No encontré ese mazo.');
-    cloud.loadGroup().then(() => {
+    if (!cloud || cloud.state.status !== 'in') return msg('Entrá con tu usuario para ver los mazos de tus grupos.');
+    cloud.loadGroups().then(() => {
       if (App.currentId() !== 'mazo' || !this.ro) return;
       this.deck = find();
-      if (this.deck) this.render(); else msg('No encontré ese mazo. Puede que lo hayan borrado, o que no hayas entrado con tu usuario.');
+      if (this.deck) this.render(); else msg('No encontré ese mazo. Puede que lo hayan dejado de compartir, o que no estés en ese grupo.');
     });
   },
   render() {
@@ -282,12 +288,13 @@ App.register({
               <button type="button" class="btn ghost" data-act="dup">${App.ICONS.dup}Duplicar</button>
               <button type="button" class="btn ghost danger" data-act="del">${App.ICONS.trash}Borrar</button>`;
     this.el.innerHTML = `
-      ${ro ? '<a class="back" href="#grupo">← Grupo</a>' : '<a class="back" href="#mazos">← Mazos</a>'}
+      ${ro ? `<a class="back" href="#grupo/${encodeURIComponent(this.gid || '')}">← ${App.esc((typeof Cloud !== 'undefined' && Cloud.group(this.gid) || {}).name || 'Grupo')}</a>` : '<a class="back" href="#mazos">← Mazos</a>'}
       <div class="deck-cols">
         <div class="list">
           <div class="card deck-top">
             <h1 class="deck-title">${esc(d.name)}</h1>
             <div class="meta">${ro ? `Armado por <b>${esc(d.ownerName || 'otro jugador')}</b> · ` : ''}${k.leader ? `Líder: <b>${esc(lname || k.leader.num)}</b> · ${esc(k.leader.num)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</div>
+            ${!ro && typeof Cloud !== 'undefined' && Cloud.shareLabel(d) ? `<div class="meta shared-l${Cloud.shareLabel(d) === 'Privado' ? '' : ' on'}">${esc(Cloud.shareLabel(d))}${Cloud.shareLabel(d) === 'Privado' ? ' · lo podés compartir con tus grupos más abajo' : ''}</div>` : ''}
             <div class="total">
               <span class="lab">Precio del mazo</span>
               <span class="big">${ready ? money(p.total) : '—'}</span>
@@ -298,7 +305,7 @@ App.register({
             </div>
           </div>
           ${share}
-          ${typeof Stars !== 'undefined' ? Stars.block(d, ro) : ''}
+          ${typeof Stars !== 'undefined' ? (ro ? Stars.groupBlock(this.gid, d) : Stars.ownBlock(d)) : ''}
         </div>
         <div class="card">
           <div class="lhead">

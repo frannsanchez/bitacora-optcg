@@ -70,7 +70,7 @@ const App = (() => {
     return i < 0 ? { id: h, param: null } : { id: h.slice(0, i), param: h.slice(i + 1) };
   }
   function go(id, param) { location.hash = param ? `${id}/${encodeURIComponent(param)}` : id; }
-  const ALIAS = { buscar: 'cartas' }; // direcciones viejas que siguen funcionando
+  const ALIAS = { buscar: 'cartas', grupos: 'grupo' }; // direcciones viejas o alternativas que siguen funcionando
   function route() {
     const { id: raw, param } = parseHash();
     const id = ALIAS[raw] || raw;
@@ -281,16 +281,30 @@ const App = (() => {
     route();
     Prices.load();
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-      // si llega una versión nueva de la app mientras está abierta, ofrecemos recargar
+      // Si llega una versión nueva, la app se recarga sola; si estás escribiendo algo, te avisa y esperás vos.
+      // En el celular la app suele quedar abierta de fondo: por eso buscamos versión nueva cada vez que volvés a ella.
       const hadController = !!navigator.serviceWorker.controller;
+      const busy = () => {
+        const a = document.activeElement;
+        return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) || !!document.querySelector('#ed-list') || !!(document.querySelector('#rate-text') || {}).value;
+      };
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (hadController) toast('Hay una versión nueva de la app', 'Actualizar', () => location.reload());
+        if (!hadController) return;
+        if (busy()) toast('Hay una versión nueva de la app', 'Actualizar', () => location.reload());
+        else location.reload();
       });
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {}));
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(r => {
+        r.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') r.update().catch(() => {}); });
+        setInterval(() => r.update().catch(() => {}), 30 * 60 * 1000);
+      }).catch(() => {}));
     }
   }
 
-  return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, PRICE_ORDER, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start };
+  // número de versión: tiene que coincidir con CACHE en sw.js ('bitacora-vN'); se muestra en Ajustes
+  const VERSION = 8;
+
+  return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, PRICE_ORDER, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start, VERSION };
 })();
 
 /* ---------- Inicio ---------- */

@@ -2,17 +2,22 @@ rules_version = '2';
 
 // Reglas de seguridad de Bitácora OPTCG.
 // Se pegan en Firebase → Firestore Database → Reglas → Publicar.
+//
+// Cómo está armado:
+// - Cada jugador tiene su perfil (users) y sus mazos (decks), que solo ve él.
+// - Los grupos (groups) tienen nombre y un código de invitación (codes/<código> → grupo).
+//   Para crear un usuario hace falta el código de algún grupo. Los códigos viven en la base, no acá.
+// - Un mazo se comparte en un grupo guardando una copia en groups/<grupo>/decks. Lo ven solo los integrantes.
+// - Las valoraciones son por grupo: groups/<grupo>/ratings/<mazo>_<jugador>.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // CAMBIÁ ESTE CÓDIGO por el de tu grupo, en minúsculas, sin tildes ni espacios (la app lo manda así
-    // aunque lo escriban con mayúsculas). Es lo que les pasás a tus amigos para crear su usuario. Este archivo es público: el código
-    // real va solo en la consola de Firebase. Si lo cambiás, los que ya están en el grupo siguen entrando.
-    function codigoDelGrupo() { return 'CAMBIAR-ESTE-CODIGO'; }
-
     function logueado() { return request.auth != null; }
-    function miembro() {
+    function tienePerfil() {
       return logueado() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function miembroDe(g) {
+      return logueado() && exists(/databases/$(database)/documents/groups/$(g)/members/$(request.auth.uid));
     }
     // Las cuentas se crean como usuario@bitacora.invalid. Si después agregan su mail, la cuenta pasa a usarlo.
     function cuentaInterna() {
@@ -20,12 +25,14 @@ service cloud.firestore {
         && request.auth.token.email.matches('^[a-z0-9_.-]{3,20}@bitacora[.]invalid$');
     }
     function miUsuario() { return request.auth.token.email.split('@')[0]; }
-    function mazoValido() {
-      let d = request.resource.data;
+    function codigoOk(c) { return c is string && c.matches('^[a-z0-9_-]{4,30}$'); }
+    function nombreGrupoOk(n) { return n is string && n.size() >= 2 && n.size() <= 40; }
+    function mazoOk(d) {
       return d.owner == request.auth.uid
         && d.name is string && d.name.size() <= 80
         && d.cards is list && d.cards.size() <= 80;
     }
+    function listaGruposOk(d) { return d.get('groups', []) is list && d.get('groups', []).size() <= 30; }
 
     // Registro de nombres de usuario: cada nombre es de una sola cuenta para siempre, aunque esa
     // cuenta cambie a su mail. Solo guarda el uid; lo puede consultar cualquiera que haya entrado.
@@ -38,32 +45,98 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Perfil de cada jugador: solo se crea con el código del grupo, con su propio nombre y con el nombre reservado.
+    // Perfil: solo lo ve su dueño. Se crea con el nombre reservado y el código de algún grupo.
     match /users/{uid} {
-      allow read: if miembro();
+      allow read: if logueado() && request.auth.uid == uid;
       allow create: if cuentaInterna() && request.auth.uid == uid
-        && request.resource.data.codigo == codigoDelGrupo()
+        && request.resource.data.keys().hasOnly(['username', 'codigo', 'creado', 'groups'])
         && request.resource.data.username == miUsuario()
-        && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
+        && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid
+        && codigoOk(request.resource.data.codigo)
+        && exists(/databases/$(database)/documents/codes/$(request.resource.data.codigo))
+        && listaGruposOk(request.resource.data);
       allow update: if logueado() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['username', 'codigo', 'creado', 'groups'])
         && request.resource.data.username == resource.data.username
-        && request.resource.data.codigo == resource.data.codigo;
+        && request.resource.data.codigo == resource.data.codigo
+        && listaGruposOk(request.resource.data);
       allow delete: if false;
     }
 
-    // Mazos: los ve todo el grupo; solo su dueño los crea, cambia o borra.
-    match /decks/{deckId} {
-      allow read: if miembro();
-      allow create: if miembro() && mazoValido();
-      allow update: if miembro() && resource.data.owner == request.auth.uid && mazoValido();
-      allow delete: if miembro() && resource.data.owner == request.auth.uid;
+    // Códigos de invitación: el id del documento es el código, así que solo lo encuentra quien lo sabe.
+    match /codes/{code} {
+      allow get: if logueado();
+      allow list: if false;
+      allow create: if tienePerfil() && codigoOk(code)
+        && request.resource.data.keys().hasOnly(['group'])
+        && getAfter(/databases/$(database)/documents/groups/$(request.resource.data.group)).data.owner == request.auth.uid
+        && getAfter(/databases/$(database)/documents/groups/$(request.resource.data.group)).data.code == code;
+      allow update, delete: if false;
     }
 
-    // Valoraciones: una por jugador y por mazo (id = <mazo>_<uid>), de 1 a 5 estrellas y un comentario corto.
-    // No se pueden valorar los mazos propios. Cada uno cambia o borra solo la suya.
-    function valoracionValida(rid) {
+    // Mis mazos (para tenerlos en todos mis dispositivos): solo los ve su dueño.
+    match /decks/{deckId} {
+      allow read: if logueado() && resource.data.owner == request.auth.uid;
+      allow create: if tienePerfil() && mazoOk(request.resource.data) && listaGruposOk(request.resource.data);
+      allow update: if logueado() && resource.data.owner == request.auth.uid
+        && mazoOk(request.resource.data) && listaGruposOk(request.resource.data);
+      allow delete: if logueado() && resource.data.owner == request.auth.uid;
+    }
+
+    // Grupos: los ven sus integrantes. Lo crea cualquiera con perfil, junto con su código (que no puede estar usado).
+    match /groups/{gid} {
+      allow read: if miembroDe(gid);
+      allow create: if tienePerfil()
+        && request.resource.data.keys().hasOnly(['name', 'owner', 'code', 'created'])
+        && request.resource.data.owner == request.auth.uid
+        && nombreGrupoOk(request.resource.data.name)
+        && codigoOk(request.resource.data.code)
+        && !exists(/databases/$(database)/documents/codes/$(request.resource.data.code))
+        && getAfter(/databases/$(database)/documents/codes/$(request.resource.data.code)).data.group == gid;
+      // quien lo creó le puede cambiar el nombre
+      allow update: if miembroDe(gid) && resource.data.owner == request.auth.uid
+        && request.resource.data.keys().hasOnly(['name', 'owner', 'code', 'created'])
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.created == resource.data.created
+        && nombreGrupoOk(request.resource.data.name);
+      allow delete: if false;
+
+      // Integrantes: entra quien crea el grupo o quien tiene su código. Cada uno puede salir.
+      match /members/{uid} {
+        allow read: if miembroDe(gid);
+        allow create: if logueado() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['username', 'joined', 'via'])
+          && request.resource.data.username == get(/databases/$(database)/documents/users/$(uid)).data.username
+          && (getAfter(/databases/$(database)/documents/groups/$(gid)).data.owner == uid
+              || get(/databases/$(database)/documents/codes/$(request.resource.data.get('via', '-'))).data.group == gid);
+        allow update: if false;
+        allow delete: if logueado() && (request.auth.uid == uid
+          || get(/databases/$(database)/documents/groups/$(gid)).data.owner == request.auth.uid);
+      }
+
+      // Mazos compartidos en el grupo: una copia del mazo. Solo su dueño la sube, cambia o saca.
+      match /decks/{deckId} {
+        allow read: if miembroDe(gid);
+        allow create: if miembroDe(gid) && mazoOk(request.resource.data)
+          && request.resource.data.keys().hasOnly(['owner', 'ownerName', 'name', 'cards', 'created', 'updated']);
+        allow update: if miembroDe(gid) && resource.data.owner == request.auth.uid && mazoOk(request.resource.data)
+          && request.resource.data.keys().hasOnly(['owner', 'ownerName', 'name', 'cards', 'created', 'updated']);
+        allow delete: if logueado() && resource.data.owner == request.auth.uid;
+      }
+
+      // Valoraciones de los mazos del grupo: una por jugador y por mazo (id = <mazo>_<jugador>),
+      // de 1 a 5 estrellas y un comentario corto. No se pueden valorar los mazos propios.
+      match /ratings/{rid} {
+        allow read: if miembroDe(gid);
+        allow create, update: if miembroDe(gid) && valoracionOk(gid, rid);
+        allow delete: if logueado() && resource.data.uid == request.auth.uid;
+      }
+    }
+
+    function valoracionOk(gid, rid) {
       let d = request.resource.data;
-      let mazo = /databases/$(database)/documents/decks/$(d.deck);
+      let mazo = /databases/$(database)/documents/groups/$(gid)/decks/$(d.deck);
       return d.keys().hasOnly(['deck', 'uid', 'stars', 'text', 'updated'])
         && d.uid == request.auth.uid
         && d.deck is string && rid == d.deck + '_' + request.auth.uid
@@ -71,11 +144,6 @@ service cloud.firestore {
         && d.text is string && d.text.size() <= 280
         && d.updated is string
         && exists(mazo) && get(mazo).data.owner != request.auth.uid;
-    }
-    match /ratings/{rid} {
-      allow read: if miembro();
-      allow create, update: if miembro() && valoracionValida(rid);
-      allow delete: if miembro() && resource.data.uid == request.auth.uid;
     }
   }
 }

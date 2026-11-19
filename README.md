@@ -3,7 +3,7 @@
 App para el celular y la PC con:
 
 - **Mazos**: cargás listas y te muestra el precio del mazo completo y de cada carta en TCGplayer.
-- **Grupo**: cada amigo tiene su usuario y contraseña (y puede agregar su mail para recuperarla). Se pueden buscar jugadores, ver sus listas, valorarlas con estrellas y un comentario, y copiarlas.
+- **Grupos**: cada amigo tiene su usuario y contraseña (y puede agregar su mail para recuperarla). Cualquiera puede crear grupos con nombre y código de invitación, y estar en varios. Los mazos son privados: cada uno elige en qué grupos compartir cada mazo. Dentro de un grupo se buscan jugadores y mazos, se valoran con estrellas y un comentario, y se copian.
 - **Cartas**: índice con la imagen de cada carta, filtros por edición, color, tipo y costo, búsqueda por nombre, tripulación o texto, y la ficha de cada carta con todas sus versiones y precios. Desde un mazo, "Agregar cartas" abre el índice para sumar o sacar copias con + y −.
 - **Calculadora de letal**.
 
@@ -19,26 +19,28 @@ Los precios son de TCGplayer, en dólares y sin envío. Llegan a través de [TCG
 5. Entrá a la pestaña **Actions**, tocá **Publicar app y precios** → **Run workflow** → **Run workflow**. Tarda unos minutos. Si ya había una corrida en rojo de antes del paso 4, ignorala.
 6. Cuando termine en verde, el link aparece en **Settings → Pages**. Es algo así: `https://TU-USUARIO.github.io/bitacora-optcg/`
 
-## Usuarios y grupo de amigos (Firebase, una sola vez)
+## Usuarios y grupos de amigos (Firebase, una sola vez)
 
 Los usuarios y las listas compartidas se guardan en **Firebase**, un servicio gratis de Google (no pide tarjeta). Sin este paso la app funciona igual, pero cada uno guarda sus mazos solo en su teléfono.
 
 1. Entrá a [console.firebase.google.com](https://console.firebase.google.com) con tu cuenta de Google y tocá **Crear un proyecto**. Nombre: `bitacora-optcg`. Google Analytics no hace falta.
 2. En el menú de la izquierda: **Compilación → Authentication → Comenzar**. En **Método de acceso** elegí **Correo electrónico/contraseña**, activalo y guardá. (La app usa usuario y contraseña y arma sola un “correo” interno. Si alguien agrega su mail en **Cuenta**, Firebase le manda un link para confirmarlo y desde ahí puede entrar con el mail y recuperar la contraseña.)
 3. **Compilación → Firestore Database → Crear base de datos**. Ubicación: `southamerica-east1 (São Paulo)`. Empezá en **modo de producción**.
-4. En Firestore, pestaña **Reglas**: borrá lo que hay, pegá todo el archivo `firestore.rules` de esta carpeta, **cambiá `CAMBIAR-ESTE-CODIGO` por el código de tu grupo en minúsculas, sin tildes ni espacios** (por ejemplo `migrupo` para "Mi Grupo") y tocá **Publicar**. La app no distingue mayúsculas ni espacios, así que tus amigos pueden escribirlo como quieran.
+4. En Firestore, pestaña **Reglas**: borrá lo que hay, pegá todo el archivo `firestore.rules` de esta carpeta y tocá **Publicar**. Las reglas no llevan ningún código: los códigos de los grupos se guardan en la base.
 5. Tocá el engranaje → **Configuración del proyecto** → abajo, en **Tus apps**, el ícono **</>** (web). Ponele `Bitácora` y registrala. Te muestra un bloque `firebaseConfig`.
 6. En GitHub abrí `site/js/firebase-config.js`, tocá el lápiz y reemplazá cada `PEGAR_AQUI` por los valores de `apiKey`, `authDomain`, `projectId` y `appId`. Tocá **Commit changes**: la app se vuelve a publicar sola.
 7. En Firebase: **Authentication → Configuración → Dominios autorizados → Agregar dominio** y poné `TU-USUARIO.github.io`.
 8. En **Authentication → Plantillas**, tocá el lápiz de **Idioma de la plantilla** y elegí **Español**: así los mails de confirmación y de nueva contraseña llegan en castellano.
+9. **El primer grupo** se crea a mano, porque para crear un usuario hace falta el código de algún grupo. En **Firestore → Datos**: creá la colección `groups` con un documento de id automático y los campos `name` (el nombre, por ejemplo `Mi Grupo`), `owner` (vacío por ahora), `code` (el código en minúsculas, sin tildes ni espacios, de 4 a 30 letras, números o guiones, por ejemplo `migrupo`) y `created` (la fecha, como texto). Después creá la colección `codes` con un documento cuyo id sea el código (`migrupo`) y un campo `group` con el id del documento anterior. Cuando crees tu usuario con ese código, poné tu uid en `owner` (lo ves en Authentication → Usuarios) para poder cambiarle el nombre al grupo. Los grupos siguientes se crean desde la app.
 
-Listo: pasales a tus amigos el link de la app y el código del grupo. Cada uno entra a **Cuenta → Crear usuario**.
+Listo: pasales a tus amigos el link de la app y el código del grupo (en la página del grupo está el botón **Copiar invitación**). Cada uno entra a **Cuenta → Crear usuario** con ese código.
 
-- **El código** lo controla Firebase con las reglas, no la app: nadie lo puede ver desde el link. Sin el código, una persona puede crear un usuario pero no ve ni sube ninguna lista.
-- **Cada mazo** lo ven todos los del grupo, pero solo su dueño lo puede cambiar o borrar.
-- **Si alguien se olvida la contraseña**: si le agregó un mail a su cuenta, toca **¿Te olvidaste la contraseña?** y le llega un link. Si no tiene mail, no se puede recuperar: desde Firebase → Authentication → Usuarios podés borrar su usuario, y en Firestore el documento `usernames/<su usuario>`, para que lo vuelva a crear con el mismo nombre; sus mazos viejos quedan en el grupo y los puede copiar a su cuenta nueva.
+- **Los códigos** los controla Firebase con las reglas: solo encuentra un grupo quien sabe su código, y sin el código de algún grupo no se puede crear un usuario.
+- **Cada mazo** es privado hasta que su dueño lo comparte en un grupo; ahí lo ven los integrantes de ese grupo, pero solo su dueño lo puede cambiar o dejar de compartir.
+- **Los perfiles y los mails** no los ve nadie más: en cada grupo solo aparece el nombre de usuario.
+- **Si alguien se olvida la contraseña**: si le agregó un mail a su cuenta, toca **¿Te olvidaste la contraseña?** y le llega un link. Si no tiene mail, no se puede recuperar: desde Firebase → Authentication → Usuarios podés borrar su usuario, y en Firestore el documento `usernames/<su usuario>`, para que lo vuelva a crear con el mismo nombre; los mazos que había compartido quedan en sus grupos y los puede copiar a su cuenta nueva.
 - **Nombres de usuario**: cada nombre queda reservado para una sola cuenta (colección `usernames`), aunque esa cuenta después pase a usar su mail.
-- **Valoraciones**: una por jugador y por mazo, de 1 a 5 estrellas con un comentario corto. Nadie puede valorar sus propios mazos.
+- **Valoraciones**: son de cada grupo; una por jugador y por mazo, de 1 a 5 estrellas con un comentario corto. Nadie puede valorar sus propios mazos.
 - **Límite gratis**: 50.000 lecturas y 20.000 escrituras por día, de sobra para un grupo de amigos.
 
 ## Instalarla en el iPhone

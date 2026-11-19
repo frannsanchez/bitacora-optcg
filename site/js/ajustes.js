@@ -70,6 +70,7 @@ App.register({
           <button type="button" class="btn ghost" id="aj-restore">Restaurar respaldo</button>
           <input type="file" id="aj-file" accept="application/json,.json" hidden>
         </div>
-      </div>`;
+      </div>
+      <p class="note app-version">Versión ${App.VERSION} de la app. Se actualiza sola cuando hay una nueva.</p>`;
   },
 });
