@@ -302,7 +302,7 @@ const App = (() => {
   }
 
   // número de versión: tiene que coincidir con CACHE en sw.js ('bitacora-vN'); se muestra en Ajustes
-  const VERSION = 8;
+  const VERSION = 9;
 
   return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, PRICE_ORDER, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start, VERSION };
 })();

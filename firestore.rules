@@ -6,7 +6,7 @@ rules_version = '2';
 // Cómo está armado:
 // - Cada jugador tiene su perfil (users) y sus mazos (decks), que solo ve él.
 // - Los grupos (groups) tienen nombre y un código de invitación (codes/<código> → grupo).
-//   Para crear un usuario hace falta el código de algún grupo. Los códigos viven en la base, no acá.
+//   Para crear un usuario no hace falta código; para entrar a un grupo, sí. Los códigos viven en la base, no acá.
 // - Un mazo se comparte en un grupo guardando una copia en groups/<grupo>/decks. Lo ven solo los integrantes.
 // - Las valoraciones son por grupo: groups/<grupo>/ratings/<mazo>_<jugador>.
 service cloud.firestore {
@@ -45,20 +45,19 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Perfil: solo lo ve su dueño. Se crea con el nombre reservado y el código de algún grupo.
+    // Perfil: solo lo ve su dueño. Se crea con el nombre reservado (el código con el que entró es opcional).
     match /users/{uid} {
       allow read: if logueado() && request.auth.uid == uid;
       allow create: if cuentaInterna() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['username', 'codigo', 'creado', 'groups'])
         && request.resource.data.username == miUsuario()
         && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid
-        && codigoOk(request.resource.data.codigo)
-        && exists(/databases/$(database)/documents/codes/$(request.resource.data.codigo))
+        && (!('codigo' in request.resource.data) || codigoOk(request.resource.data.codigo))
         && listaGruposOk(request.resource.data);
       allow update: if logueado() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['username', 'codigo', 'creado', 'groups'])
         && request.resource.data.username == resource.data.username
-        && request.resource.data.codigo == resource.data.codigo
+        && request.resource.data.get('codigo', '') == resource.data.get('codigo', '')
         && listaGruposOk(request.resource.data);
       allow delete: if false;
     }

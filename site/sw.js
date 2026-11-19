@@ -1,6 +1,6 @@
 // Guarda la app en el dispositivo para que abra sin conexión.
 // Los precios se buscan primero en internet y, si no hay, se usan los últimos guardados.
-const CACHE = 'bitacora-v8';
+const CACHE = 'bitacora-v9';
 const CORE = ['./', 'index.html', 'css/app.css', 'js/core.js', 'js/mazos.js', 'js/cartas.js', 'js/ajustes.js', 'js/nube.js',
   'js/firebase-config.js', 'js/letal-engine.js', 'js/letal.js', 'js/letal-worker.js', 'manifest.webmanifest',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png'];

@@ -124,16 +124,18 @@ const Cloud = (() => {
     if (!ok) throw new Error('Tu nombre de usuario figura a nombre de otra cuenta. Avisale a quien administra la app.');
   }
 
-  // crea el perfil (users/<uid>) con el código de un grupo y entra a ese grupo
+  // crea el perfil (users/<uid>); si vino con el código de un grupo, entra a ese grupo
   async function createProfile(user, username, code) {
     const { F, db } = fb;
-    const snap = await F.getDoc(F.doc(db, 'codes', code));
-    if (!snap.exists()) throw new Error('No hay ningún grupo con ese código. Revisalo con quien te lo pasó.');
-    const profile = { username, codigo: code, creado: iso(), groups: [] };
+    if (code) {
+      const snap = await F.getDoc(F.doc(db, 'codes', code));
+      if (!snap.exists()) throw new Error('No hay ningún grupo con ese código. Revisalo con quien te lo pasó o dejalo vacío.');
+    }
+    const profile = code ? { username, codigo: code, creado: iso(), groups: [] } : { username, creado: iso(), groups: [] };
     try { await F.setDoc(F.doc(db, 'users', user.uid), profile); }
     catch (e) { if (/permission-denied/.test(e.code || '')) throw new Error('No pude crear tu perfil con ese código.'); throw e; }
     me = { uid: user.uid, username, profile, groups: [] };
-    await joinByCode(code);
+    if (code) await joinByCode(code);
     invitation.set('');
   }
 
@@ -143,8 +145,7 @@ const Cloud = (() => {
     mail = String(mail || '').trim().toLowerCase();
     if (!USER_RE.test(username)) throw new Error('El usuario tiene que tener de 3 a 20 letras, números, puntos, guiones o guiones bajos, sin espacios.');
     if (String(password).length < 6) throw new Error('La contraseña tiene que tener al menos 6 caracteres.');
-    if (!code) throw new Error('Falta el código de un grupo.');
-    if (!CODE_RE.test(code)) throw new Error('El código tiene que tener de 4 a 30 letras, números o guiones, sin espacios.');
+    if (code && !CODE_RE.test(code)) throw new Error('El código tiene que tener de 4 a 30 letras, números o guiones, sin espacios.');
     if (mail && !MAIL_RE.test(mail)) throw new Error('Ese mail no es válido.');
     const { A, F, auth, db } = fb;
     busySignup = true;
@@ -181,7 +182,7 @@ const Cloud = (() => {
 
   async function completeProfile(code) {
     code = normCode(code);
-    if (!CODE_RE.test(code)) throw new Error('El código tiene que tener de 4 a 30 letras, números o guiones, sin espacios.');
+    if (code && !CODE_RE.test(code)) throw new Error('El código tiene que tener de 4 a 30 letras, números o guiones, sin espacios.');
     try {
       if (!(await claimName(me.username, me.uid))) throw new Error('Ese usuario ya es de otra cuenta.');
       busySignup = true;
@@ -531,7 +532,7 @@ const Cloud = (() => {
 
   // texto para invitar a alguien a un grupo
   const inviteLink = g => `${appBase()}#grupo/unirme:${encodeURIComponent(g.code)}`;
-  const inviteText = g => `Sumate a mi grupo “${g.name}” en Bitácora OPTCG: ${inviteLink(g)}\nSi todavía no tenés usuario, crealo con el código ${g.code}.`;
+  const inviteText = g => `Sumate a mi grupo “${g.name}” en Bitácora OPTCG: ${inviteLink(g)}\nEl código es ${g.code}: si todavía no tenés usuario, ponelo al crearlo y entrás directo.`;
 
   // ---- botón de cuenta en la barra del celular ----
   function paintAccount() {
@@ -774,8 +775,8 @@ App.register({
     if (s.status !== 'in') {
       const inv = v.mode === 'join' && v.code;
       this.el.innerHTML = `${head('Creá grupos con tus amigos, compartí los mazos que quieras y valorá los de los demás.')}
-        <div class="card"><p class="note">${inv ? `Te invitaron a un grupo. Creá tu usuario (el código <b>${esc(v.code)}</b> ya queda puesto) o entrá con el tuyo y volvé a abrir la invitación.` : s.status === 'noprofile' ? 'Te falta el código de un grupo para terminar tu usuario.' : s.status === 'loading' ? 'Conectando…' : 'Entrá con tu usuario para ver tus grupos.'}</p>
-        <div class="vact"><a class="btn primary" href="#cuenta">${App.ICONS.cuenta}${s.status === 'noprofile' ? 'Poner el código' : inv ? 'Crear usuario o entrar' : 'Entrar o crear usuario'}</a></div></div>`;
+        <div class="card"><p class="note">${inv ? `Te invitaron a un grupo. Creá tu usuario (el código <b>${esc(v.code)}</b> ya queda puesto) o entrá con el tuyo y volvé a abrir la invitación.` : s.status === 'noprofile' ? 'Te falta terminar tu usuario.' : s.status === 'loading' ? 'Conectando…' : 'Entrá con tu usuario para ver tus grupos.'}</p>
+        <div class="vact"><a class="btn primary" href="#cuenta">${App.ICONS.cuenta}${s.status === 'noprofile' ? 'Terminar mi usuario' : inv ? 'Crear usuario o entrar' : 'Entrar o crear usuario'}</a></div></div>`;
       return;
     }
     const dr = this.draft || {};
@@ -783,7 +784,7 @@ App.register({
       this.el.innerHTML = `<a class="back" href="#grupo">← Grupos</a>
         <form class="card auth" id="f-gcreate" novalidate>
           <h2>Crear un grupo</h2>
-          <p class="note">Ponele un nombre y un código. El código es lo que les pasás a tus amigos para que se sumen (también sirve para crear su usuario).</p>
+          <p class="note">Ponele un nombre y un código. El código es lo que les pasás a tus amigos para que se sumen.</p>
           <div><label class="flabel" for="gc-name">Nombre del grupo</label><input class="field" id="gc-name" maxlength="40" autocomplete="off" placeholder="Ej.: Los del local" value="${esc(dr.name || '')}" required></div>
           <div><label class="flabel" for="gc-code">Código para invitar</label><input class="field" id="gc-code" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(dr.code || '')}"${dr.touched ? ' data-touched="1"' : ''} required>
             <small class="fhint">De 4 a 30 letras, números o guiones. No distingue mayúsculas. Nadie más puede usar el mismo.</small></div>
@@ -953,8 +954,8 @@ App.register({
         else if (f.id === 'f-up') {
           if (v('#cu-pass') !== v('#cu-pass2')) throw new Error('Las contraseñas no coinciden.');
           await Cloud.signUp(v('#cu-user'), v('#cu-pass'), v('#cu-code'), v('#cu-mail'));
-          App.toast('¡Listo! Ya tenés tu usuario y estás en el grupo');
-        } else if (f.id === 'f-code') { await Cloud.completeProfile(v('#cu-code')); App.toast('¡Listo! Ya estás en el grupo'); }
+          App.toast(v('#cu-code').trim() ? '¡Listo! Ya tenés tu usuario y estás en el grupo' : '¡Listo! Ya tenés tu usuario. En Grupos podés crear uno o sumarte con un código');
+        } else if (f.id === 'f-code') { await Cloud.completeProfile(v('#cu-code')); App.toast('¡Listo! Ya tenés tu usuario'); }
         else if (f.id === 'f-pass') {
           if (v('#cu-new') !== v('#cu-new2')) throw new Error('Las contraseñas nuevas no coinciden.');
           await Cloud.changePassword(v('#cu-cur'), v('#cu-new')); f.reset(); App.toast('Cambiaste tu contraseña');
@@ -995,11 +996,11 @@ App.register({
     }
     if (s.status === 'noprofile') {
       this.el.innerHTML = `${head}<form class="card auth" id="f-code" novalidate>
-        <h2>Te falta el código de un grupo</h2>
-        <p class="note">Entraste como <b>${esc(Cloud.me.username)}</b>, pero tu usuario no está terminado. Poné el código de un grupo: te lo pasa alguien que ya esté en él.</p>
-        <div><label class="flabel" for="cu-code">Código del grupo</label><input class="field" id="cu-code" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(Cloud.invitation.get())}" required></div>
+        <h2>Terminá tu usuario</h2>
+        <p class="note">Entraste como <b>${esc(Cloud.me.username)}</b>, pero tu usuario quedó a medio crear. Si te pasaron el código de un grupo, ponelo para entrar directo; si no, dejalo vacío.</p>
+        <div><label class="flabel" for="cu-code">Código de un grupo <span class="opt-l">(opcional)</span></label><input class="field" id="cu-code" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(Cloud.invitation.get())}"></div>
         ${err('f-code')}
-        <div class="vact"><button type="submit" class="btn primary">Entrar al grupo</button><button type="button" class="btn ghost" id="cu-out">Salir</button></div>
+        <div class="vact"><button type="submit" class="btn primary">Terminar mi usuario</button><button type="button" class="btn ghost" id="cu-out">Salir</button></div>
       </form>`;
       return;
     }
@@ -1087,7 +1088,7 @@ App.register({
         <div><label class="flabel" for="cu-pass">Contraseña</label><input class="field" id="cu-pass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" minlength="6" required>
           ${up ? '<small class="fhint">Al menos 6 caracteres.</small>' : ''}</div>
         ${up ? `<div><label class="flabel" for="cu-pass2">Repetí la contraseña</label><input class="field" id="cu-pass2" type="password" autocomplete="new-password" minlength="6" required></div>
-        <div><label class="flabel" for="cu-code">Código de un grupo</label><input class="field" id="cu-code" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(inv)}" required><small class="fhint">Te lo pasa alguien que ya esté en el grupo. Con ese código entrás a ese grupo; después podés crear otros o sumarte a más.</small></div>
+        <div><label class="flabel" for="cu-code">Código de un grupo <span class="opt-l">(opcional)</span></label><input class="field" id="cu-code" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(inv)}"><small class="fhint">Si te invitaron, ponelo y entrás directo a ese grupo. Si no, dejalo vacío: después podés crear tu propio grupo o sumarte a uno.</small></div>
         <div><label class="flabel" for="cu-mail">Mail <span class="opt-l">(opcional)</span></label><input class="field" id="cu-mail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false"><small class="fhint">Para recuperar la contraseña si te la olvidás. Te mandamos un link para confirmarlo. Tus grupos no lo ven.</small></div>` : ''}
         ${err(up ? 'f-up' : 'f-in')}
         <div class="vact"><button type="submit" class="btn primary">${up ? 'Crear usuario' : 'Entrar'}</button>${up ? '' : '<button type="button" class="btn ghost" data-mode="recuperar">¿Te olvidaste la contraseña?</button>'}</div>
