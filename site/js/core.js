@@ -315,7 +315,7 @@ const App = (() => {
   }
 
   // número de versión: tiene que coincidir con CACHE en sw.js ('bitacora-vN'); se muestra en Ajustes
-  const VERSION = 10;
+  const VERSION = 11;
 
   return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, PRICE_ORDER, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start, VERSION };
 })();
@@ -340,8 +340,8 @@ App.register({
     const tone = Prices.state === 'ok' ? '' : Prices.state === 'loading' ? '' : 'tone-warn';
     this.el.innerHTML = `
       <div class="hero">
-        <h1>¿Cuánto vale tu mazo?</h1>
-        <p>Guardá tus listas, mirá su precio en TCGplayer carta por carta y usá las herramientas para jugar mejor, en el celular o en la PC.</p>
+        <h1>¡Bienvenidos a bordo, nakamas!</h1>
+        <p>Armá tu tripulación de cartas, mirá cuánto vale el botín en TCGplayer y calculá si llegás al letal. En el celular o en la PC.</p>
       </div>
       ${tone ? `<div class="banner ${tone}"><b>Precios</b><span>${esc(Prices.statusText())}</span></div>` : `<p class="note">${esc(Prices.statusText())}</p>`}
       <div class="tools">${cards}</div>`;
