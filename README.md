@@ -1,80 +1,144 @@
 # Bitácora OPTCG
 
-App para el celular y la PC con:
+Una app para jugadores de One Piece Card Game: buscás cartas, armás tus mazos y ves cuánto cuestan, los compartís con tus amigos y, en plena partida, la calculadora te dice si llegás al letal.
 
-- **Mazos**: cargás listas y te muestra el precio del mazo completo y de cada carta en TCGplayer.
-- **Grupos**: cada amigo tiene su usuario y contraseña (y puede agregar su mail para recuperarla). Cualquiera puede crear grupos con nombre y código de invitación, y estar en varios. Los mazos son privados: cada uno elige en qué grupos compartir cada mazo. Dentro de un grupo se buscan jugadores y mazos, se valoran con estrellas y un comentario, y se copian.
-- **Cartas**: índice con la imagen de cada carta, filtros por edición, color, tipo y costo, búsqueda por nombre, tripulación o texto, y la ficha de cada carta con todas sus versiones y precios. Desde un mazo, "Agregar cartas" abre el índice para sumar o sacar copias con + y −.
-- **Calculadora de letal**.
+Funciona en el celular y en la PC, desde el navegador: **[frannsanchez.github.io/bitacora-optcg](https://frannsanchez.github.io/bitacora-optcg/)**
 
-Los precios son de TCGplayer, en dólares y sin envío. Llegan a través de [TCGCSV](https://tcgcsv.com), un espejo gratuito de los datos de TCGplayer que se actualiza una vez por día. Una tarea de GitHub los baja todas las noches y los publica junto con la app.
+---
 
-## Cómo publicarla (una sola vez, desde la compu)
+## Qué podés hacer
 
-1. Creá una cuenta gratis en [github.com](https://github.com).
-2. Arriba a la derecha tocá **+** → **New repository**. Nombre: `bitacora-optcg`, dejalo en **Public** y tocá **Create repository**.
-3. En el repositorio vacío tocá **uploading an existing file** y arrastrá **todo lo que hay dentro** de esta carpeta: `site`, `scripts`, `.github` y este `README.md`. Después tocá **Commit changes**.
-   - En Mac la carpeta `.github` está oculta. En el Finder apretá **Cmd + Shift + .** para verla.
-4. Entrá a **Settings** → **Pages**. En **Build and deployment → Source** elegí **GitHub Actions**.
-5. Entrá a la pestaña **Actions**, tocá **Publicar app y precios** → **Run workflow** → **Run workflow**. Tarda unos minutos. Si ya había una corrida en rojo de antes del paso 4, ignorala.
-6. Cuando termine en verde, el link aparece en **Settings → Pages**. Es algo así: `https://TU-USUARIO.github.io/bitacora-optcg/`
+### Buscar cartas
 
-## Usuarios y grupos de amigos (Firebase, una sola vez)
+Un índice con todas las cartas del juego y su imagen.
 
-Los usuarios y las listas compartidas se guardan en **Firebase**, un servicio gratis de Google (no pide tarjeta). Sin este paso la app funciona igual, pero cada uno guarda sus mazos solo en su teléfono.
+- Buscás por nombre, número, tripulación o por algo que diga el texto de la carta.
+- Filtrás por edición, color, tipo (líder, personaje, evento, escenario) y costo.
+- Ves cada versión por separado: la común, las paralelas, las manga, las SP, etc., cada una con su propio precio.
+- Al tocar una carta se abre su ficha: la imagen grande, el texto, el poder, el counter, sus versiones y lo que sale cada una. Hay un link a TCGplayer para comprarla.
 
-1. Entrá a [console.firebase.google.com](https://console.firebase.google.com) con tu cuenta de Google y tocá **Crear un proyecto**. Nombre: `bitacora-optcg`. Google Analytics no hace falta.
-2. En el menú de la izquierda: **Compilación → Authentication → Comenzar**. En **Método de acceso** elegí **Correo electrónico/contraseña**, activalo y guardá. (La app usa usuario y contraseña y arma sola un “correo” interno. Si alguien agrega su mail en **Cuenta**, Firebase le manda un link para confirmarlo y desde ahí puede entrar con el mail y recuperar la contraseña.)
-3. **Compilación → Firestore Database → Crear base de datos**. Ubicación: `southamerica-east1 (São Paulo)`. Empezá en **modo de producción**.
-4. En Firestore, pestaña **Reglas**: borrá lo que hay, pegá todo el archivo `firestore.rules` de esta carpeta y tocá **Publicar**. Las reglas no llevan ningún código: los códigos de los grupos se guardan en la base.
-5. Tocá el engranaje → **Configuración del proyecto** → abajo, en **Tus apps**, el ícono **</>** (web). Ponele `Bitácora` y registrala. Te muestra un bloque `firebaseConfig`.
-6. En GitHub abrí `site/js/firebase-config.js`, tocá el lápiz y reemplazá cada `PEGAR_AQUI` por los valores de `apiKey`, `authDomain`, `projectId` y `appId`. Tocá **Commit changes**: la app se vuelve a publicar sola.
-7. En Firebase: **Authentication → Configuración → Dominios autorizados → Agregar dominio** y poné `TU-USUARIO.github.io`.
-8. En **Authentication → Plantillas**, tocá el lápiz de **Idioma de la plantilla** y elegí **Español**: así los mails de confirmación y de nueva contraseña llegan en castellano.
+### Armar mazos y ver cuánto cuestan
 
-Listo: creá tu usuario en **Cuenta**, armá tu grupo en **Grupos → Crear grupo** y pasales a tus amigos la invitación (en la página del grupo está el botón **Copiar invitación**). Cualquiera puede crear su usuario sin código; con el código entra directo a tu grupo.
+- **Creás un mazo de dos formas:** eligiendo las cartas mirando las imágenes (tocás + en cada una) o pegando la lista que te da el simulador o cualquier página de mazos.
+- **El precio total aparece bien grande**, y abajo ves cuánto suma cada carta.
+- **Elegís la versión de cada carta:** si tenés la paralela o querés comprar la común, la marcás y el precio se ajusta.
+- **"Lo que más pesa"** te muestra qué cartas encarecen el mazo, por si buscás reemplazos más baratos.
+- **La app te avisa** si el mazo no tiene 50 cartas o si te pasaste de 4 copias de alguna.
+- Podés ver las cartas en lista o como grilla de imágenes, ordenarlas de la más cara a la más barata, duplicar un mazo, copiar la lista para pegarla en el simulador o borrarlo (con opción de deshacer).
 
-- **Los códigos** los controla Firebase con las reglas: solo encuentra un grupo quien sabe su código. Alguien que crea un usuario sin código solo ve sus propios mazos hasta que se suma a un grupo.
-- **Cada mazo** es privado hasta que su dueño lo comparte en un grupo; ahí lo ven los integrantes de ese grupo, pero solo su dueño lo puede cambiar o dejar de compartir.
-- **Los perfiles y los mails** no los ve nadie más: en cada grupo solo aparece el nombre de usuario.
-- **Si alguien se olvida la contraseña**: si le agregó un mail a su cuenta, toca **¿Te olvidaste la contraseña?** y le llega un link. Si no tiene mail, no se puede recuperar: desde Firebase → Authentication → Usuarios podés borrar su usuario, y en Firestore el documento `usernames/<su usuario>`, para que lo vuelva a crear con el mismo nombre; los mazos que había compartido quedan en sus grupos y los puede copiar a su cuenta nueva.
-- **Nombres de usuario**: cada nombre queda reservado para una sola cuenta (colección `usernames`), aunque esa cuenta después pase a usar su mail.
-- **Valoraciones**: son de cada grupo; una por jugador y por mazo, de 1 a 5 estrellas con un comentario corto. Nadie puede valorar sus propios mazos.
-- **Límite gratis**: 50.000 lecturas y 20.000 escrituras por día, de sobra para un grupo de amigos.
+### Tu usuario
 
-## Instalarla en el iPhone
+- Creás un usuario con nombre y contraseña. No hace falta mail ni código de nadie.
+- Con tu usuario, tus mazos quedan guardados en tu cuenta: los ves en cualquier celular o PC donde entres.
+- Si le agregás tu mail, podés entrar con el mail y recuperar la contraseña si te la olvidás.
+- Sin usuario la app funciona igual, pero los mazos quedan solo en ese dispositivo.
 
-1. Abrí el link en Safari → **Compartir** → **Agregar a pantalla de inicio**.
-2. Abrila una vez desde el ícono con internet. Desde ahí funciona sin conexión con los últimos precios que guardó.
+### Grupos con amigos
 
-Para compartirla, pasá el mismo link. Cada persona guarda sus propios mazos en su teléfono.
+- Creás un grupo con un nombre y un código, y les pasás a tus amigos la invitación con un botón.
+- Podés estar en varios grupos a la vez (tu grupo de amigos, el del local, etc.).
+- **Tus mazos son privados.** En cada mazo elegís en qué grupos mostrarlo, y si lo cambiás, se actualiza ahí también.
+- Dentro de un grupo ves a los jugadores y sus mazos, buscás por jugador, mazo o líder y los ordenás por más recientes, mejor valorados o más baratos.
+- **Valorás los mazos de los demás** con estrellas de 1 a 5 y un comentario corto, y ves las valoraciones que recibieron los tuyos.
+- Podés copiar el mazo de un amigo a tus mazos para probarlo o modificarlo.
 
-## Cosas para saber
+### Calculadora de letal
 
-- **Precios**: se actualizan solos todos los días a las 00:23 (hora de Argentina). También podés correr la tarea a mano desde **Actions**.
-- **Si dejan de actualizarse**: GitHub pausa las tareas programadas de un repositorio después de 60 días sin cambios y avisa por mail. Entrá a **Actions**, elegí la tarea y tocá **Enable workflow**.
-- **Tus mazos** quedan guardados en el dispositivo y, si entraste con tu usuario, también en tu cuenta: los ves en cualquier celular o PC donde entres. Sin usuario podés pasarlos con **Ajustes → Descargar respaldo** y **Restaurar respaldo**.
-- **Actualizar la app**: subí los archivos nuevos al repositorio de la misma forma (paso 3). Se vuelve a publicar sola.
+Para cuando no sabés si atacar con todo o esperar un turno.
 
-## Cómo está armada (para sumar herramientas)
+- Cargás la vida, el poder del líder y la mano del rival, sus blockers y los DON!! que le quedan. También cargás tus atacantes con su poder y los DON!! que tenés libres.
+- **Te dice si llegás al letal:** seguro, probable, con riesgo o no.
+- **Te arma el plan:** en qué orden atacar y cómo repartir los DON!!.
+- **Te muestra qué pasa según lo que tenga en la mano el rival:** mano perfecta, normal o floja.
+- **Te dice qué cambiaría el resultado,** por ejemplo un DON!! más o sacar un blocker.
+- Si no vas por el letal, te dice a qué personaje del rival conviene pegarle (el que más te amenaza, el que le da cartas o DON!!, el blocker).
+
+### Ajustes
+
+- **Qué precio usar:** la mediana de TCGplayer (la que viene elegida), el Market (lo que se viene pagando) o el Low (la publicación más barata).
+- **Qué versión contar por defecto:** la común o la más barata de cada carta.
+- **Respaldo:** descargás tus mazos en un archivo y los restaurás en otro dispositivo, aunque no tengas usuario.
+
+### En el celular
+
+- **iPhone:** abrí el link en Safari → **Compartir** → **Agregar a pantalla de inicio**.
+- **Android:** abrí el link en Chrome → menú ⋮ → **Agregar a la pantalla principal** (o **Instalar app**).
+- Queda como una app más. Después de abrirla una vez con internet, funciona sin conexión con los últimos precios que guardó.
+- Cuando hay una versión nueva, se actualiza sola.
+
+### De dónde salen los precios
+
+Son los de **TCGplayer**, en dólares y sin envío. Se actualizan solos todas las noches. La app es de fans y no tiene relación con Bandai ni con TCGplayer.
+
+---
+
+## Información técnica
+
+Esta sección es para consultar cuando haya que hacerle cambios a la app.
+
+### Cómo está armada
+
+HTML, CSS y JavaScript sin frameworks ni compilación. GitHub Pages publica la carpeta `site/`.
 
 ```
-site/                 lo que se publica
-  index.html          la estructura: barra lateral, pestañas y una <section> por herramienta
-  css/app.css         colores y componentes compartidos
-  js/core.js          navegación, guardado, precios y registro de herramientas
-  js/mazos.js         mazos y precios
-  js/cartas.js        índice de cartas, ficha y armado de mazos
-  js/letal*.js        calculadora de letal
-  js/ajustes.js       ajustes y respaldo
-  js/nube.js          usuarios, grupo y sincronización con Firebase
-  js/firebase-config.js  datos de tu proyecto de Firebase
-  sw.js               guarda la app para usarla sin conexión
-scripts/sync.mjs      baja los precios de TCGCSV a site/data/prices.json
-firestore.rules       reglas de seguridad de Firebase (código del grupo y permisos)
-.github/workflows/    la tarea diaria que publica todo
+site/                    lo que se publica
+  index.html             estructura: barra lateral (PC), pestañas (celular) y una <section> por herramienta
+  css/app.css            colores, letra y componentes (tokens en :root)
+  js/core.js             App: navegación por #hash, guardado, precios, fichas de cartas, íconos, avisos
+  js/mazos.js            Decks (datos, lectura de listas, precio) y las vistas de mazos
+  js/cartas.js           CardUI, índice de cartas, ficha y modo armado
+  js/letal.js            pantalla de la calculadora
+  js/letal-engine.js     motor de cálculo (sin interfaz)
+  js/letal-worker.js     corre el motor en segundo plano
+  js/ajustes.js          ajustes y respaldo
+  js/nube.js             Cloud (Firebase), Stars (valoraciones) y las vistas de grupos y cuenta
+  js/firebase-config.js  datos públicos del proyecto de Firebase
+  sw.js                  guarda la app para usarla sin conexión
+  data/                  prices.json y cards.json (los genera la tarea diaria, no se versionan)
+scripts/sync.mjs         baja precios, ediciones y fichas de TCGCSV
+firestore.rules          reglas de seguridad de Firebase
+.github/workflows/       publicar.yml: la tarea que publica todo
+CLAUDE.md                notas detalladas para hacer cambios
 ```
 
-Cada herramienta se suma con `App.register({ id, title, icon, nav, home, init, show })` en su propio archivo, más su `<section class="view" id="view-ID">` y su `<script>` en `index.html`. Si la herramienta tiene archivos nuevos, agregalos también a la lista `CORE` de `sw.js` para que funcionen sin conexión.
+### Sumar o cambiar una herramienta
 
-App de fans, sin relación con Bandai ni con TCGplayer.
+- Cada herramienta es un archivo que llama a `App.register({ id, title, short, icon, nav, tab, home, desc, status, init, show })` y tiene su `<section class="view" id="view-ID">` y su `<script>` en `index.html`.
+  - `nav` la muestra en la barra lateral, `tab` en las pestañas del celular (máximo 5) y `home` como tarjeta en Inicio.
+- Si sumás archivos, agregalos a la lista `CORE` de `sw.js` para que funcionen sin conexión.
+- **En cada cambio subí la versión:** `CACHE = 'bitacora-vN'` en `sw.js` y `VERSION = N` en `core.js`, con el mismo número. Así la app detecta la versión nueva y se recarga sola. El número aparece en Ajustes.
+- Probá la sintaxis de cada JS que toques con `node --check archivo.js`.
+- **Estilo:** al estilo Material, con superficies tonales en los azules del dorso de las cartas y el dorado para la acción principal y los precios. Usa una sola letra (Manrope), sin mayúsculas sostenidas, con radios de 28, 16, 12 y 8 px.
+- Todo el texto de la interfaz va en español rioplatense (voseo).
+
+### Precios y cartas
+
+- La tarea `.github/workflows/publicar.yml` corre en cada push a `main`, todos los días a las 03:23 UTC (00:23 en Argentina) y a mano desde **Actions → Publicar app y precios → Run workflow**.
+- `scripts/sync.mjs` baja de [TCGCSV](https://tcgcsv.com) (espejo diario de TCGplayer, categoría One Piece) los precios Market, Low y Mid de cada producto, las ediciones con su fecha y la ficha de cada carta. Mid es la "Listed Median" de TCGplayer.
+- La versión "común" de cada número es la que elige `sync.mjs`. Los nombres de TCGplayer son irregulares, así que para reconocer las versiones se usan `Prices.isBase` y `Prices.variant`.
+- **Si los precios dejan de actualizarse:** GitHub pausa las tareas programadas después de 60 días sin cambios en el repositorio y avisa por mail. Se reactiva en **Actions**, eligiendo la tarea y tocando **Enable workflow**.
+
+### Usuarios y grupos (Firebase)
+
+Usa Firebase Authentication (mail y contraseña) y Firestore. El SDK se carga solo cuando hace falta.
+
+| Dónde | Qué guarda |
+|---|---|
+| `usernames/<usuario>` | `{ uid }`: reserva el nombre para una sola cuenta |
+| `users/<uid>` | `{ username, groups[], creado }`: solo lo lee su dueño |
+| `decks/<id>` | el mazo, privado; `groups` dice dónde está compartido |
+| `groups/<gid>` | `{ name, owner, code, created }` |
+| `codes/<código>` | `{ group }`: el id es el código, solo lo encuentra quien lo sabe |
+| `groups/<gid>/members/<uid>` | `{ username, joined, via }` |
+| `groups/<gid>/decks/<id>` | copia del mazo compartido, que la app mantiene al día y borra al dejar de compartirlo |
+| `groups/<gid>/ratings/<mazo>_<uid>` | `{ deck, uid, stars (1-5), text (≤280), updated }`: nadie valora sus propios mazos |
+
+- **Cuentas:** se crean como `usuario@bitacora.invalid`. Si el jugador agrega su mail, se confirma con un link (`verifyBeforeUpdateEmail`) y desde ahí la cuenta usa ese mail para entrar y para recuperar la contraseña (`sendPasswordResetEmail`). El mail no se guarda en Firestore y nadie más lo ve.
+- **Reglas:** `firestore.rules` se pega en Firebase → Firestore → Reglas → Publicar. Las reglas no tienen ningún código. **Los códigos reales de los grupos van solo en Firebase, nunca en este repositorio, porque es público.**
+- `firebase-config.js` es público por diseño: lo que protege los datos son las reglas.
+- **Límite gratis de Firestore:** 50.000 lecturas y 20.000 escrituras por día, de sobra para un grupo de amigos.
+
+### Mantenimiento
+
+- **Alguien se olvidó la contraseña y no tiene mail:** en Firebase → Authentication → Usuarios borrás su usuario, y en Firestore el documento `usernames/<su usuario>`, para que lo vuelva a crear con el mismo nombre. Los mazos que había compartido siguen en sus grupos y los puede copiar a la cuenta nueva.
+- **Dominio autorizado:** si la app se publica en otra dirección, hay que sumarla en Firebase → Authentication → Configuración → Dominios autorizados.
