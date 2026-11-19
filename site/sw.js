@@ -1,12 +1,13 @@
 // Guarda la app en el dispositivo para que abra sin conexión.
 // Los precios se buscan primero en internet y, si no hay, se usan los últimos guardados.
-const CACHE = 'bitacora-v4';
+const CACHE = 'bitacora-v5';
 const CORE = ['./', 'index.html', 'css/app.css', 'js/core.js', 'js/mazos.js', 'js/cartas.js', 'js/ajustes.js', 'js/nube.js',
   'js/firebase-config.js', 'js/letal-engine.js', 'js/letal.js', 'js/letal-worker.js', 'manifest.webmanifest',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
+  // cache: 'reload' evita guardar copias viejas que el navegador tenga en su caché HTTP
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -28,7 +29,7 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(req).then(res => put(req, res)).catch(async () => (await caches.match(req, { ignoreSearch: true })) || new Response('', { status: 504 })));
     return;
   }
-  const update = fetch(req).then(res => put(req, res)).catch(() => null);
+  const update = fetch(same ? new Request(req, { cache: 'no-cache' }) : req).then(res => put(req, res)).catch(() => null);
   e.respondWith((async () => {
     const hit = await caches.match(req, { ignoreSearch: same });
     if (hit) return hit;

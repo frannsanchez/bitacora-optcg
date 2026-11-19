@@ -242,7 +242,12 @@ const App = (() => {
     route();
     Prices.load();
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+      // si llega una versión nueva de la app mientras está abierta, ofrecemos recargar
+      const hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController) toast('Hay una versión nueva de la app', 'Actualizar', () => location.reload());
+      });
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {}));
     }
   }
 
