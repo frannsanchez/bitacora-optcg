@@ -14,6 +14,12 @@ service cloud.firestore {
     function miembro() {
       return logueado() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
+    // Las cuentas se crean como usuario@bitacora.invalid. Si después agregan su mail, la cuenta pasa a usarlo.
+    function cuentaInterna() {
+      return logueado() && request.auth.token.email is string
+        && request.auth.token.email.matches('^[a-z0-9_.-]{3,20}@bitacora[.]invalid$');
+    }
+    function miUsuario() { return request.auth.token.email.split('@')[0]; }
     function mazoValido() {
       let d = request.resource.data;
       return d.owner == request.auth.uid
@@ -21,12 +27,24 @@ service cloud.firestore {
         && d.cards is list && d.cards.size() <= 80;
     }
 
-    // Perfil de cada jugador: solo se crea con el código del grupo y con su propio nombre de usuario.
+    // Registro de nombres de usuario: cada nombre es de una sola cuenta para siempre, aunque esa
+    // cuenta cambie a su mail. Solo guarda el uid; lo puede consultar cualquiera que haya entrado.
+    match /usernames/{name} {
+      allow get: if logueado();
+      allow list: if false;
+      allow create: if cuentaInterna() && name == miUsuario()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Perfil de cada jugador: solo se crea con el código del grupo, con su propio nombre y con el nombre reservado.
     match /users/{uid} {
       allow read: if miembro();
-      allow create: if logueado() && request.auth.uid == uid
+      allow create: if cuentaInterna() && request.auth.uid == uid
         && request.resource.data.codigo == codigoDelGrupo()
-        && request.resource.data.username == request.auth.token.email.split('@')[0];
+        && request.resource.data.username == miUsuario()
+        && get(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid;
       allow update: if logueado() && request.auth.uid == uid
         && request.resource.data.username == resource.data.username
         && request.resource.data.codigo == resource.data.codigo;
@@ -39,6 +57,25 @@ service cloud.firestore {
       allow create: if miembro() && mazoValido();
       allow update: if miembro() && resource.data.owner == request.auth.uid && mazoValido();
       allow delete: if miembro() && resource.data.owner == request.auth.uid;
+    }
+
+    // Valoraciones: una por jugador y por mazo (id = <mazo>_<uid>), de 1 a 5 estrellas y un comentario corto.
+    // No se pueden valorar los mazos propios. Cada uno cambia o borra solo la suya.
+    function valoracionValida(rid) {
+      let d = request.resource.data;
+      let mazo = /databases/$(database)/documents/decks/$(d.deck);
+      return d.keys().hasOnly(['deck', 'uid', 'stars', 'text', 'updated'])
+        && d.uid == request.auth.uid
+        && d.deck is string && rid == d.deck + '_' + request.auth.uid
+        && d.stars is int && d.stars >= 1 && d.stars <= 5
+        && d.text is string && d.text.size() <= 280
+        && d.updated is string
+        && exists(mazo) && get(mazo).data.owner != request.auth.uid;
+    }
+    match /ratings/{rid} {
+      allow read: if miembro();
+      allow create, update: if miembro() && valoracionValida(rid);
+      allow delete: if miembro() && resource.data.uid == request.auth.uid;
     }
   }
 }

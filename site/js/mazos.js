@@ -129,7 +129,7 @@ App.register({
       if (this.editing) { this.check(); this.preview(); return; } // no rehacemos el formulario para no perder lo que escribiste
       if (this.deck) this.render();
     };
-    App.on('prices', again); App.on('settings', again); App.on('cards', again);
+    App.on('prices', again); App.on('settings', again); App.on('cards', again); App.on('group', again);
     // si la sincronización trae una versión nueva del mazo abierto, la mostramos
     App.on('decks', () => {
       if (App.currentId() !== 'mazo' || this.editing || this.ro || !this.deck) return;
@@ -199,6 +199,8 @@ App.register({
       return;
     }
     this.render();
+    // las valoraciones que recibió (si está en la nube)
+    if (this.deck && this.deck.synced && typeof Cloud !== 'undefined' && Cloud.state.status === 'in') Cloud.loadGroup();
   },
   // mazo de otro jugador del grupo: se ve con precios pero no se edita
   showShared(id) {
@@ -296,6 +298,7 @@ App.register({
             </div>
           </div>
           ${share}
+          ${typeof Stars !== 'undefined' ? Stars.block(d, ro) : ''}
         </div>
         <div class="card">
           <div class="lhead">

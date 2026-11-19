@@ -469,3 +469,55 @@ body[data-view="letal"] { padding-bottom: calc(var(--tab-h) + 100px + env(safe-a
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 @media (max-width: 380px) { .stepper input { width: 62px; } .verdict .v-label { font-size: 24px; } .vhead h1 { font-size: 26px; } }
+
+/* ---- estrellas y valoraciones ---- */
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.stars { color: var(--accent); letter-spacing: 1px; white-space: nowrap; }
+.stars i { font-style: normal; color: var(--line); }
+.rline { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 700; font-size: 14px; color: var(--accent-2); }
+.rline small { color: var(--muted); font-weight: 400; }
+.muted { color: var(--muted); }
+.rate-card { display: grid; gap: 14px; }
+.rate-sum { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rate-sum .stars { font-size: 24px; }
+.rate-sum b { font-family: var(--f-display); font-size: 26px; }
+.rate-sum small { color: var(--muted); }
+.rate-form { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.starpick { display: flex; gap: 4px; }
+.starpick button { width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--line); font-size: 26px; line-height: 1; cursor: pointer; }
+.starpick button.on { color: var(--accent); border-color: var(--accent); }
+.starpick button:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
+.rlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rlist li { border-top: 1px solid var(--line); padding-top: 10px; }
+.rhead2 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rhead2 small { color: var(--muted); font-size: 13px; margin-left: auto; }
+.rlist p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---- jugadores del grupo ---- */
+.sec { font-size: 20px; margin: 22px 0 10px; }
+.sec-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 22px 0 10px; }
+.sec-row .sec { margin: 0; }
+.sec-row .sortseg { margin: 0; }
+.players { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.player { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; min-width: 0; }
+.player:hover { border-color: var(--accent); }
+.player .avatar { width: 44px; height: 44px; font-size: 20px; }
+.pinfo { display: grid; gap: 2px; min-width: 0; }
+.pinfo b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinfo small { color: var(--muted); font-size: 14px; }
+.player-top { display: flex; align-items: center; gap: 16px; }
+.player-top h1 { margin: 0; font-size: 28px; overflow-wrap: anywhere; }
+.player-top h1 small { font-size: 16px; color: var(--muted); font-family: var(--f-body, inherit); }
+.player-top .note { margin: 4px 0 0; }
+.avatar.big { width: 64px; height: 64px; font-size: 30px; }
+#gr-q { margin-bottom: 4px; }
+
+/* ---- mail de recuperación ---- */
+.mailcard { display: grid; gap: 12px; }
+.mailcard h2 { margin: 0; }
+.mailok { display: flex; gap: 12px; align-items: flex-start; margin: 0; }
+.mailok b { display: block; overflow-wrap: anywhere; }
+.mailok small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+.okdot { width: 28px; height: 28px; border-radius: 50%; background: var(--ok); color: var(--bg); display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
+.mailcard details .auth { margin-top: 12px; }
+.opt-l { font-weight: 400; color: var(--muted); }
