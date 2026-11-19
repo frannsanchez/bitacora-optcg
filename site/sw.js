@@ -29,7 +29,8 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(req).then(res => put(req, res)).catch(async () => (await caches.match(req, { ignoreSearch: true })) || new Response('', { status: 504 })));
     return;
   }
-  const update = fetch(same ? new Request(req, { cache: 'no-cache' }) : req).then(res => put(req, res)).catch(() => null);
+  // los archivos propios se revalidan con el servidor para no quedarse con copias viejas
+  const update = (same ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req)).then(res => put(req, res)).catch(() => null);
   e.respondWith((async () => {
     const hit = await caches.match(req, { ignoreSearch: same });
     if (hit) return hit;
