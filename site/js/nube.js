@@ -545,8 +545,9 @@ const Cloud = (() => {
   function listNote() {
     const { esc } = App;
     if (!configured) return '';
-    if (st.status === 'in' && me) return `<p class="note">${st.syncing ? 'Sincronizando…' : `Se guardan en tu usuario <b>${esc(me.username)}</b>. Son privados: en cada mazo elegís en qué grupos compartirlo.`}${st.error ? ` <span class="warn-t">${esc(st.error)}</span>` : ''}</p>`;
-    return `<p class="note">Se guardan solo en este dispositivo. <a href="#cuenta">Entrá con tu usuario</a> para tenerlos en todos lados y compartirlos con tus grupos.</p>`;
+    // con usuario no hace falta explicar nada: solo avisamos si algo falló
+    if (st.status === 'in' && me) return st.error ? `<div class="banner tone-warn"><span>${esc(st.error)}</span></div>` : '';
+    return `<p class="note">Se guardan solo en este dispositivo. <a href="#cuenta">Entrá con tu usuario</a> para tenerlos en todos lados.</p>`;
   }
 
   App.on('decks-local', () => { if (st.status === 'in') syncSoon(); });
@@ -607,22 +608,22 @@ const Stars = (() => {
   function ownBlock(deck) {
     if (typeof Cloud === 'undefined' || !Cloud.configured) return '';
     if (!signedIn()) {
-      return `<div class="card share-card"><h2>Compartir</h2><p class="note">Este mazo está solo en este dispositivo. <a href="#cuenta">Entrá con tu usuario</a> para compartirlo con tus grupos.</p></div>`;
+      return `<div class="card share-card"><p class="note">Este mazo está solo en este dispositivo. <a href="#cuenta">Entrá con tu usuario</a> para compartirlo con tus grupos.</p></div>`;
     }
-    if (!Cloud.groupsLoaded) return `<div class="card share-card"><h2>Compartir con tus grupos</h2><p class="note">Cargando tus grupos…</p></div>`;
+    if (!Cloud.groupsLoaded) return `<div class="card share-card"><p class="note">Cargando tus grupos…</p></div>`;
     const gl = Cloud.groupList();
     if (!gl.length) {
-      return `<div class="card share-card"><h2>Compartir con tus grupos</h2><p class="note">Este mazo es privado. Todavía no estás en ningún grupo: <a href="#grupo">creá uno o sumate con un código</a> para compartirlo.</p></div>`;
+      return `<div class="card share-card"><h2>En qué grupos se ve</h2><p class="note">Este mazo es privado. Todavía no estás en ningún grupo: <a href="#grupo">creá uno o sumate con un código</a> para compartirlo.</p></div>`;
     }
     const on = new Set(deck.groups || []);
     const shared = gl.filter(g => on.has(g.id));
-    const rows = gl.map(g => `<label class="share-row"><input type="checkbox" data-share="${esc(g.id)}"${on.has(g.id) ? ' checked' : ''}><span><b>${esc(g.name)}</b><small>${App.plural(g.members.length, 'jugador', 'jugadores')}</small></span></label>`).join('');
+    const rows = gl.map(g => `<label class="gshare"><input type="checkbox" data-share="${esc(g.id)}"${on.has(g.id) ? ' checked' : ''}><span><b>${esc(g.name)}</b><small>${App.plural(g.members.length, 'jugador', 'jugadores')}</small></span></label>`).join('');
     const got = Cloud.receivedRatings(deck.id);
     const s = { n: got.length, avg: got.length ? got.reduce((a, r) => a + r.stars, 0) / got.length : 0 };
     const multi = shared.length > 1;
     return `<div class="card share-card">
-        <h2>Compartir con tus grupos</h2>
-        <p class="note">${shared.length ? `Lo ven los jugadores de ${shared.map(g => esc(g.name)).join(', ')}. Si lo cambiás, se actualiza ahí también.` : 'Es privado: solo lo ves vos. Marcá los grupos donde lo querés mostrar.'}</p>
+        <h2>En qué grupos se ve</h2>
+        <p class="note">${shared.length ? 'Si cambiás el mazo, se actualiza en esos grupos también.' : 'Es privado: solo lo ves vos. Marcá los grupos donde lo querés mostrar.'}</p>
         <div class="share-list" data-deck="${esc(deck.id)}">${rows}</div>
       </div>
       ${shared.length ? `<div class="card rate-card">
@@ -781,7 +782,7 @@ App.register({
     }
     const dr = this.draft || {};
     if (v.mode === 'create') {
-      this.el.innerHTML = `<a class="back" href="#grupo">← Grupos</a>
+      this.el.innerHTML = `<a class="back" href="#grupo">${App.ICONS.back}Grupos</a>
         <form class="card auth" id="f-gcreate" novalidate>
           <h2>Crear un grupo</h2>
           <p class="note">Ponele un nombre y un código. El código es lo que les pasás a tus amigos para que se sumen.</p>
@@ -795,7 +796,7 @@ App.register({
       return;
     }
     if (v.mode === 'join') {
-      this.el.innerHTML = `<a class="back" href="#grupo">← Grupos</a>
+      this.el.innerHTML = `<a class="back" href="#grupo">${App.ICONS.back}Grupos</a>
         <form class="card auth" id="f-gjoin" novalidate>
           <h2>Unirme a un grupo</h2>
           <p class="note">Escribí el código que te pasaron.</p>
@@ -828,15 +829,15 @@ App.register({
 
     // página de un grupo
     const g = Cloud.group(v.gid);
-    if (!g) { this.el.innerHTML = `<a class="back" href="#grupo">← Grupos</a><div class="card"><p class="note">No estás en ese grupo, o ya no existe.</p></div>`; return; }
+    if (!g) { this.el.innerHTML = `<a class="back" href="#grupo">${App.ICONS.back}Grupos</a><div class="card"><p class="note">No estás en ese grupo, o ya no existe.</p></div>`; return; }
     const owner = g.owner === Cloud.me.uid;
     if (v.user) {
       const m = g.members.find(x => x.username === v.user);
-      if (!m) { this.el.innerHTML = `<a class="back" href="#grupo/${encodeURIComponent(g.id)}">← ${esc(g.name)}</a><div class="card"><p class="note">${esc(v.user)} no está en ${esc(g.name)}.</p></div>`; return; }
+      if (!m) { this.el.innerHTML = `<a class="back" href="#grupo/${encodeURIComponent(g.id)}">${App.ICONS.back}${esc(g.name)}</a><div class="card"><p class="note">${esc(v.user)} no está en ${esc(g.name)}.</p></div>`; return; }
       const ps = Cloud.playerScore(g.id, m.uid);
       const n = g.decks.filter(d => d.owner === m.uid).length;
       const yo = m.uid === Cloud.me.uid;
-      this.el.innerHTML = `<a class="back" href="#grupo/${encodeURIComponent(g.id)}">← ${esc(g.name)}</a>
+      this.el.innerHTML = `<a class="back" href="#grupo/${encodeURIComponent(g.id)}">${App.ICONS.back}${esc(g.name)}</a>
         <div class="card player-top">
           <span class="avatar big">${esc(m.username.slice(0, 1).toUpperCase())}</span>
           <div><h1>${esc(m.username)}${yo ? ' <small>(vos)</small>' : ''}</h1>
@@ -847,7 +848,7 @@ App.register({
       this.lists();
       return;
     }
-    this.el.innerHTML = `<a class="back" href="#grupo">← Grupos</a>
+    this.el.innerHTML = `<a class="back" href="#grupo">${App.ICONS.back}Grupos</a>
       <div class="card group-top">
         <div class="gt-head"><h1>${esc(g.name)}</h1>${owner ? '<button type="button" class="btn ghost small" data-act="rename">Cambiar nombre</button>' : ''}</div>
         ${this.renaming ? `<form class="auth inline" id="f-grename" novalidate><label class="sr" for="gr-name">Nombre</label><input class="field" id="gr-name" maxlength="40" value="${esc(g.name)}" required><button type="submit" class="btn">Guardar</button>${err('f-grename')}</form>` : ''}
@@ -1061,7 +1062,7 @@ App.register({
     }
     if (this.mode === 'recuperar') {
       this.el.innerHTML = `${head}
-        <a class="back" href="#cuenta" data-mode="entrar">← Entrar</a>
+        <a class="back" href="#cuenta" data-mode="entrar">${App.ICONS.back}Entrar</a>
         <form class="card auth" id="f-reset" novalidate>
           <h2>Recuperar la contraseña</h2>
           <p class="note">Escribí el mail que le agregaste a tu cuenta y te mandamos un link para elegir una contraseña nueva.</p>

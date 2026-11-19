@@ -90,7 +90,7 @@ App.register({
     App.on('prices', again); App.on('settings', again); App.on('decks', again); App.on('cards', again); App.on('group', again);
   },
   show() {
-    const { esc, money, Prices, plural } = App;
+    const { esc, money, Prices, plural, ICONS } = App;
     App.Cards.load(); // nombres e imágenes de los líderes
     if (typeof Cloud !== 'undefined' && Cloud.state.status === 'in') Cloud.loadGroups(); // nombres de los grupos donde compartiste
     const decks = Decks.all();
@@ -98,26 +98,33 @@ App.register({
     const items = decks.map(d => {
       const k = Decks.counts(d);
       const p = ready ? Decks.price(d) : null;
-      const lname = k.leader ? (Prices.cardName(k.leader.num) || k.leader.num) : null;
+      const lname = k.leader ? (Prices.cardName(k.leader.num) || k.leader.num) : '';
+      const lab = typeof Cloud !== 'undefined' ? Cloud.shareLabel(d) : '';
+      const chips = [
+        `<span class="achip${k.main === 50 ? '' : ' warn'}">${k.main === 50 ? '50 cartas' : `${k.main} de 50`}</span>`,
+        lab && lab !== 'Privado' ? `<span class="achip on">${esc(lab)}</span>` : '',
+        d.ejemplo ? '<span class="achip">Ejemplo</span>' : '',
+      ].join('');
       return `<a class="deck withimg" href="#mazo/${encodeURIComponent(d.id)}">
         <span class="dimg">${CardUI.leaderImg(d)}</span>
         <span class="dinfo">
-          <b>${esc(d.name)}${d.ejemplo ? '<span class="badge soft">Ejemplo</span>' : ''}</b>
-          <small>${lname ? `Líder: ${esc(lname)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</small>
-          ${(lab => (lab ? `<small class="shared-l${lab === 'Privado' ? '' : ' on'}">${esc(lab)}</small>` : ''))(typeof Cloud !== 'undefined' ? Cloud.shareLabel(d) : '')}
-          ${p ? `<span class="price">${money(p.total)}</span>${p.missing ? `<small>${plural(p.missing, 'carta', 'cartas')} sin precio</small>` : ''}`
-              : `<span class="price none">${esc(Prices.state === 'loading' ? 'Calculando…' : 'Sin precios todavía')}</span>`}
+          <b>${esc(d.name)}</b>
+          ${lname ? `<small>${esc(lname)}</small>` : '<small>Sin líder</small>'}
+          <span class="chips-row">${chips}</span>
         </span>
+        ${p ? `<span class="price" title="${p.missing ? esc(`${plural(p.missing, 'carta', 'cartas')} sin precio no suman`) : ''}">${money(p.total)}</span>`
+            : `<span class="price none">${Prices.state === 'loading' ? 'Calculando…' : 'Sin precio'}</span>`}
       </a>`;
     }).join('');
     this.el.innerHTML = `
       <div class="vhead">
         <div><h1>Mazos</h1><p>${esc(Prices.statusText())}</p></div>
-        <div class="vact"><a class="btn primary" href="#mazo/nuevo">${App.ICONS.plus}Nuevo mazo</a></div>
+        <a class="btn primary only-desk" href="#mazo/nuevo">${ICONS.plus}Nuevo mazo</a>
       </div>
       ${typeof Cloud !== 'undefined' ? Cloud.listNote() : ''}
-      ${!ready && Prices.state !== 'loading' ? `<div class="banner tone-warn"><b>Sin precios</b><span>${esc(Prices.statusText())} Igual podés cargar y guardar tus listas.</span></div>` : ''}
-      ${decks.length ? `<div class="decks">${items}</div>` : `<div class="card"><p class="note">Todavía no guardaste ningún mazo. Tocá “Nuevo mazo” para elegir las cartas con imágenes o pegar la lista del simulador.</p></div>`}`;
+      ${!ready && Prices.state !== 'loading' ? `<div class="banner tone-warn"><span>${esc(Prices.statusText())} Igual podés cargar y guardar tus listas.</span></div>` : ''}
+      ${decks.length ? `<div class="decks">${items}</div>` : `<div class="card"><p class="note">Todavía no guardaste ningún mazo. Tocá “Nuevo mazo” para elegir las cartas con imágenes o pegar la lista del simulador.</p></div>`}
+      <a class="fab" href="#mazo/nuevo">${ICONS.plus}Nuevo mazo</a>`;
   },
 });
 
@@ -125,7 +132,7 @@ App.register({
 App.register({
   id: 'mazo', title: 'Mazo', navAs: 'mazos', icon: App.ICONS.mazos,
   init(el) {
-    this.el = el; this.sort = 'lista'; this.open = new Set();
+    this.el = el; this.sort = 'lista'; this.open = new Set(); this.tab = 'cartas';
     const again = () => {
       if (App.currentId() !== 'mazo') return;
       if (this.editing) { this.check(); this.preview(); return; } // no rehacemos el formulario para no perder lo que escribiste
@@ -141,13 +148,15 @@ App.register({
     el.addEventListener('click', e => {
       const t = e.target;
       const deck = this.deck;
-      if (t.closest('[data-act="edit"]')) { this.editing = true; this.render(); return; }
+      if (t.closest('[data-act="edit"]')) { this.editing = true; this.draft = null; this.render(); return; }
       if (t.closest('[data-act="cancel"]')) {
         if (this.isNew) { App.go('mazos'); return; }
         this.editing = false; this.render(); return;
       }
       if (t.closest('[data-act="save"]')) { this.saveEdit(); return; }
       if (t.closest('[data-act="visual"]')) { this.goVisual(); return; }
+      const wb = t.closest('[data-way]');
+      if (wb) { this.keepDraft(); this.way = wb.dataset.way; this.renderEditor(); return; }
       if (t.closest('[data-act="copy"]') && deck) { App.copy(Decks.toText(deck), 'Lista copiada'); return; }
       if (t.closest('[data-act="mine"]') && deck) {
         const c = Decks.add(Decks.make(`${deck.name} (de ${deck.ownerName || 'otro jugador'})`, deck.cards));
@@ -155,7 +164,7 @@ App.register({
       }
       if (t.closest('[data-act="dup"]') && deck) {
         const c = Decks.make(`${deck.name} (copia)`, deck.cards);
-        Decks.add(c); App.toast('Hiciste una copia del mazo'); App.go('mazo', c.id); return;
+        Decks.add(c); App.toast('Duplicaste el mazo'); App.go('mazo', c.id); return;
       }
       if (t.closest('[data-act="del"]') && deck) {
         const r = Decks.remove(deck.id);
@@ -163,6 +172,8 @@ App.register({
         App.toast(`Borraste “${deck.name}”`, 'Deshacer', () => { Decks.restore(r); App.go('mazo', deck.id); });
         return;
       }
+      const tb = t.closest('[data-tab]');
+      if (tb) { this.tab = tb.dataset.tab; this.render(); return; }
       const sb = t.closest('[data-sort]');
       if (sb) { this.sort = sb.dataset.sort; this.render(); return; }
       const vb = t.closest('[data-dview]');
@@ -173,6 +184,15 @@ App.register({
         if (this.open.has(num)) this.open.delete(num); else this.open.add(num);
         this.render(); return;
       }
+    });
+    // pestañas: flechas para moverse entre ellas
+    el.addEventListener('keydown', e => {
+      const tb = e.target.closest('[role="tab"]');
+      if (!tb || !/^(ArrowLeft|ArrowRight)$/.test(e.key)) return;
+      const all = [...el.querySelectorAll('[role="tab"]')];
+      const n = all[(all.indexOf(tb) + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+      this.tab = n.dataset.tab; this.render();
+      const f = el.querySelector(`[role="tab"][data-tab="${this.tab}"]`); if (f) f.focus();
     });
     el.addEventListener('change', e => {
       const t = e.target;
@@ -191,17 +211,18 @@ App.register({
   show(param) {
     this.ro = false;
     App.Cards.load(); // nombres, líder e imágenes
+    if (param !== this.param) { this.tab = 'cartas'; this.param = param; }
     if (param && param.startsWith('nube:')) return this.showShared(param.slice(5));
     this.isNew = param === 'nuevo';
     this.deck = this.isNew ? null : Decks.get(param);
     this.editing = this.isNew;
+    this.way = 'visual'; this.draft = null; this.focusName = this.isNew;
     this.open = new Set();
     if (!this.isNew && !this.deck) {
-      this.el.innerHTML = `<a class="back" href="#mazos">← Mazos</a><div class="card"><p class="note">No encontré ese mazo. Puede que lo hayas borrado.</p></div>`;
+      this.el.innerHTML = `<a class="back" href="#mazos">${App.ICONS.back}Mazos</a><div class="card"><p class="note">No encontré ese mazo. Puede que lo hayas borrado.</p></div>`;
       return;
     }
     this.render();
-    // las valoraciones que recibió (si está en la nube)
     // en qué grupos está compartido y las valoraciones que recibió
     if (this.deck && typeof Cloud !== 'undefined' && Cloud.state.status === 'in') Cloud.loadGroups();
   },
@@ -214,7 +235,7 @@ App.register({
     const find = () => (cloud ? cloud.groupDeck(gid, id) : null);
     this.deck = find();
     if (this.deck) { this.render(); return; }
-    const back = `<a class="back" href="#grupo/${encodeURIComponent(gid)}">← Grupo</a>`;
+    const back = `<a class="back" href="#grupo/${encodeURIComponent(gid)}">${App.ICONS.back}Grupo</a>`;
     const msg = t => { this.el.innerHTML = `${back}<div class="card"><p class="note">${t}</p></div>`; };
     msg('Cargando el mazo…');
     if (!cloud || cloud.state.status !== 'in') return msg('Entrá con tu usuario para ver los mazos de tus grupos.');
@@ -226,19 +247,79 @@ App.register({
   },
   render() {
     if (this.editing) return this.renderEditor();
-    const { esc, money, Prices, plural, fdate } = App;
-    const d = this.deck;
+    const { esc, money, Prices, plural, fdate, ICONS } = App;
+    const d = this.deck, ro = this.ro;
     const k = Decks.counts(d);
     const ready = Prices.state === 'ok';
     const p = Decks.price(d);
-    const lname = k.leader ? (Prices.cardName(k.leader.num) || '') : '';
-    const warns = [];
-    if (!ready) warns.push(['warn', Prices.statusText()]);
-    if (ready && p.missing) warns.push(['warn', `${plural(p.missing, 'carta no tiene', 'cartas no tienen')} precio en TCGplayer: no suman al total.`]);
-    if (k.main !== 50) warns.push(['warn', `El mazo tiene ${plural(k.main, 'carta', 'cartas')} sin contar el líder (lo normal son 50).`]);
-    const over = d.cards.filter(c => c.qty > 4 && !(k.leader && c.num === k.leader.num));
-    if (over.length) warns.push(['warn', `Más de 4 copias: ${over.map(c => c.num).join(', ')}.`]);
+    const lname = k.leader ? (Prices.cardName(k.leader.num) || k.leader.num) : '';
+    const cloud = typeof Cloud !== 'undefined' ? Cloud : null;
 
+    // ---- encabezado: líder, nombre y lo justo para ubicarse ----
+    const lab = !ro && cloud ? cloud.shareLabel(d) : '';
+    const chips = [
+      `<span class="achip${k.main === 50 ? '' : ' warn'}" title="Sin contar el líder">${k.main === 50 ? '50 cartas' : `${k.main} de 50 cartas`}</span>`,
+      lab ? `<span class="achip${lab === 'Privado' ? '' : ' on'}">${esc(lab)}</span>` : '',
+    ].join('');
+    const menu = ro ? '' : `
+      <details class="menu">
+        <summary class="icon-btn" aria-label="Más opciones" title="Más opciones">${ICONS.more}</summary>
+        <div class="menu-list">
+          <button type="button" data-act="copy">${ICONS.copy}Copiar lista</button>
+          <button type="button" data-act="dup">${ICONS.dup}Duplicar</button>
+          <button type="button" class="danger" data-act="del">${ICONS.trash}Borrar</button>
+        </div>
+      </details>`;
+    const src = ready
+      ? `${App.PRICE_LABEL[App.settings.priceType]} de TCGplayer al ${fdate(Prices.updated)}${p.missing ? `. No incluye ${plural(p.missing, 'carta', 'cartas')} sin precio.` : ''}`
+      : Prices.statusText();
+    const actions = ro
+      ? `<button type="button" class="btn primary" data-act="mine">${ICONS.dup}Copiar a mis mazos</button>
+         <button type="button" class="btn" data-act="copy">${ICONS.copy}Copiar lista</button>`
+      : `<a class="btn primary" href="#cartas/mazo:${encodeURIComponent(d.id)}">${ICONS.plus}Agregar cartas</a>
+         <button type="button" class="btn" data-act="edit">${ICONS.edit}Editar lista</button>`;
+    const back = ro
+      ? `<a class="back" href="#grupo/${encodeURIComponent(this.gid || '')}">${ICONS.back}${esc((cloud && cloud.group(this.gid) || {}).name || 'Grupo')}</a>`
+      : `<a class="back" href="#mazos">${ICONS.back}Mazos</a>`;
+
+    // ---- pestañas ----
+    const social = typeof Stars !== 'undefined' ? (ro ? Stars.groupBlock(this.gid, d) : Stars.ownBlock(d)) : '';
+    const score = ro && cloud && cloud.state.status === 'in' ? cloud.deckScore(this.gid, d.id) : null;
+    const tabs = [['cartas', 'Cartas', ''], ['precio', 'Precio', '']];
+    if (social) tabs.push(ro ? ['social', 'Valoraciones', score && score.n ? String(score.n) : ''] : ['social', 'Compartir', '']);
+    if (!tabs.some(t => t[0] === this.tab)) this.tab = 'cartas';
+    const panel = this.tab === 'precio' ? this.pricePanel(p, ready) : this.tab === 'social' ? social : this.cardsPanel(p, k, ready);
+
+    this.el.innerHTML = `
+      ${back}
+      <div class="deck-cols">
+        <div class="dtop">
+          <div class="dhead">
+            <span class="dimg lg">${CardUI.leaderImg(d)}</span>
+            <div class="dh-text">
+              <h1 class="deck-title">${esc(d.name)}</h1>
+              ${ro ? `<p class="dsub">De <b>${esc(d.ownerName || 'otro jugador')}</b></p>` : ''}
+              ${lname ? `<p class="dsub">${esc(lname)}</p>` : ''}
+              <div class="chips-row">${chips}</div>
+            </div>
+            ${menu}
+          </div>
+          <div class="dprice">
+            <span class="big">${ready ? money(p.total) : '—'}</span>
+            <span class="src">${esc(src)}</span>
+          </div>
+          <div class="dact">${actions}</div>
+        </div>
+        <div class="dmain">
+          <div class="tabs" role="tablist" aria-label="Partes del mazo">${tabs.map(([id, name, n]) => `<button type="button" role="tab" id="tab-${id}" data-tab="${id}" aria-selected="${this.tab === id}" aria-controls="deck-panel" tabindex="${this.tab === id ? 0 : -1}">${name}${n ? `<span class="count">${n}</span>` : ''}</button>`).join('')}</div>
+          <div class="tabpanel" id="deck-panel" role="tabpanel" aria-labelledby="tab-${this.tab}">${panel}</div>
+        </div>
+      </div>`;
+  },
+  // pestaña Cartas: la lista, con la versión y el precio de cada una
+  cardsPanel(p, k, ready) {
+    const { esc, money, Prices, ICONS } = App;
+    const d = this.deck, ro = this.ro;
     let rows = p.rows.slice();
     if (this.sort === 'caras') rows.sort((a, b) => (b.sub ?? -1) - (a.sub ?? -1));
     const grid = App.settings.deckView === 'imagenes';
@@ -246,82 +327,59 @@ App.register({
     const lines = rows.map(r => {
       const c = r.c, ch = r.chosen;
       const name = ch ? (Prices.cardName(c.num) || ch.name) : (ready ? 'No está en los datos de TCGplayer' : c.num);
-      const variant = ch ? [ch.group.abbr || ch.group.name, Prices.variant(ch), c.pick ? 'elegida' : ''].filter(Boolean).join(' · ') : '';
+      const variant = ch ? Prices.variant(ch) : '';
       const isL = k.leader && k.leader.num === c.num;
       if (grid) {
         const pid = pidOf(r);
-        const href = `#carta/${encodeURIComponent(`${c.num}${pid ? '~' + pid : ''}${this.ro ? '' : '@' + d.id}`)}`;
+        const href = `#carta/${encodeURIComponent(`${c.num}${pid ? '~' + pid : ''}${ro ? '' : '@' + d.id}`)}`;
         return `<a class="ctile deckt" href="${href}">
           <span class="cimg">${CardUI.img(pid, name)}<span class="qbadge">×${c.qty}</span>${isL ? '<span class="lbadge">Líder</span>' : ''}</span>
-          <span class="cmeta"><b>${esc(name)}</b><small>${esc(c.num)}${ch && Prices.variant(ch) ? ' · ' + esc(Prices.variant(ch)) : ''}</small><span class="cprice${r.unit == null ? ' miss' : ''}">${r.unit == null ? 'sin precio' : money(r.sub)}</span></span>
+          <span class="cmeta"><b>${esc(name)}</b><small>${esc(variant || c.num)}</small><span class="cprice${r.unit == null ? ' miss' : ''}">${r.unit == null ? 'Sin precio' : money(r.sub)}</span></span>
         </a>`;
       }
       const open = this.open.has(c.num);
-      const opts = open ? this.optionsHTML(r) : '';
       return `<li class="cline">
         <button type="button" class="cl-main" data-num="${esc(c.num)}" aria-expanded="${open}">
           <span class="q">${c.qty}×</span>
           ${CardUI.img(pidOf(r), '', 200, 'thumb')}
-          <span class="nm"><b>${esc(name)}${isL ? '<span class="badge">Líder</span>' : ''}</b><small>${esc(c.num)}${variant ? ' · ' + esc(variant) : ''}</small></span>
-          <span class="pr${r.unit == null ? ' miss' : ''}"><b>${r.unit == null ? 'sin precio' : money(r.sub)}</b>${r.unit != null && c.qty > 1 ? `<small>${money(r.unit)} c/u</small>` : ''}${r.approx ? '<small>precio aproximado</small>' : ''}</span>
+          <span class="nm"><b>${esc(name)}${isL ? '<span class="badge">Líder</span>' : ''}</b><small>${esc(c.num)}${variant ? `<span class="vt">${esc(variant)}</span>` : ''}${c.pick ? '<span class="vt">Elegida</span>' : ''}</small></span>
+          <span class="pr${r.unit == null ? ' miss' : ''}"><b>${r.unit == null ? 'Sin precio' : money(r.sub)}</b>${r.unit != null && c.qty > 1 ? `<small>${money(r.unit)} c/u</small>` : ''}${r.approx ? '<small>Aproximado</small>' : ''}</span>
         </button>
-        ${opts}
+        ${open ? this.optionsHTML(r) : ''}
       </li>`;
     }).join('');
-
-    // qué cartas pesan más
+    const over = d.cards.filter(c => c.qty > 4 && !(k.leader && c.num === k.leader.num));
+    const hint = grid ? (ro ? 'Tocá una carta para ver su ficha.' : 'Tocá una carta para cambiar las copias o la versión.')
+      : 'Tocá una carta para ver sus versiones y elegir la tuya.';
+    return `
+      <div class="ptools">
+        <div class="seg" role="radiogroup" aria-label="Cómo ver las cartas">
+          <button type="button" role="radio" data-dview="lista" aria-checked="${!grid}">${ICONS.list}Lista</button>
+          <button type="button" role="radio" data-dview="imagenes" aria-checked="${grid}">${ICONS.grid}Imágenes</button>
+        </div>
+        <button type="button" class="chip" data-sort="${this.sort === 'caras' ? 'lista' : 'caras'}" aria-pressed="${this.sort === 'caras'}">Más caras primero</button>
+      </div>
+      ${over.length ? `<div class="banner tone-warn"><span>Más de 4 copias: ${esc(over.map(c => c.num).join(', '))}.</span></div>` : ''}
+      <p class="note">${hint}</p>
+      ${grid ? `<div class="cgrid">${lines}</div>` : `<ul class="clist">${lines}</ul>`}`;
+  },
+  // pestaña Precio: qué cartas pesan más y de dónde sale el número
+  pricePanel(p, ready) {
+    const { esc, money, Prices, plural, fdate } = App;
+    if (!ready) return `<div class="card"><p class="note">${esc(Prices.statusText())}</p></div>`;
     const top = p.rows.filter(r => r.sub).sort((a, b) => b.sub - a.sub).slice(0, 5);
     const topSum = top.reduce((s, r) => s + r.sub, 0);
-    const share = ready && p.total > 0 && top.length ? `
+    const weight = p.total > 0 && top.length ? `
       <div class="card"><h2>Lo que más pesa</h2>
-        <div class="bar-share">${top.map(r => `<div class="share-row"><span>${r.c.qty}× ${esc(Prices.cardName(r.c.num) || r.c.num)}</span><b class="tab">${money(r.sub)}</b><span class="track"><i style="width:${Math.max(2, Math.round(100 * r.sub / p.total))}%"></i></span></div>`).join('')}</div>
-        <p class="note">Estas ${top.length} cartas son el ${Math.round(100 * topSum / p.total)}% del precio del mazo.</p>
+        <div class="bar-share">${top.map(r => `<div class="wrow"><span>${r.c.qty}× ${esc(Prices.cardName(r.c.num) || r.c.num)}</span><b>${money(r.sub)}</b><span class="track"><i style="width:${Math.max(2, Math.round(100 * r.sub / p.total))}%"></i></span></div>`).join('')}</div>
+        <p class="note">${top.length === 1 ? 'Esta carta es' : `Estas ${top.length} cartas son`} el ${Math.round(100 * topSum / p.total)}% del precio del mazo.</p>
       </div>` : '';
-
-    const ro = this.ro;
-    const actions = ro ? `
-              <button type="button" class="btn primary" data-act="mine">${App.ICONS.dup}Copiar a mis mazos</button>
-              <button type="button" class="btn" data-act="copy">${App.ICONS.copy}Copiar lista</button>` : `
-              <a class="btn primary" href="#cartas/mazo:${encodeURIComponent(d.id)}">${App.ICONS.plus}Agregar cartas</a>
-              <button type="button" class="btn" data-act="edit">${App.ICONS.edit}Editar lista</button>
-              <button type="button" class="btn" data-act="copy">${App.ICONS.copy}Copiar lista</button>
-              <button type="button" class="btn ghost" data-act="dup">${App.ICONS.dup}Duplicar</button>
-              <button type="button" class="btn ghost danger" data-act="del">${App.ICONS.trash}Borrar</button>`;
-    this.el.innerHTML = `
-      ${ro ? `<a class="back" href="#grupo/${encodeURIComponent(this.gid || '')}">← ${App.esc((typeof Cloud !== 'undefined' && Cloud.group(this.gid) || {}).name || 'Grupo')}</a>` : '<a class="back" href="#mazos">← Mazos</a>'}
-      <div class="deck-cols">
-        <div class="list">
-          <div class="card deck-top">
-            <h1 class="deck-title">${esc(d.name)}</h1>
-            <div class="meta">${ro ? `Armado por <b>${esc(d.ownerName || 'otro jugador')}</b> · ` : ''}${k.leader ? `Líder: <b>${esc(lname || k.leader.num)}</b> · ${esc(k.leader.num)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</div>
-            ${!ro && typeof Cloud !== 'undefined' && Cloud.shareLabel(d) ? `<div class="meta shared-l${Cloud.shareLabel(d) === 'Privado' ? '' : ' on'}">${esc(Cloud.shareLabel(d))}${Cloud.shareLabel(d) === 'Privado' ? ' · lo podés compartir con tus grupos más abajo' : ''}</div>` : ''}
-            <div class="total">
-              <span class="lab">Precio del mazo</span>
-              <span class="big">${ready ? money(p.total) : '—'}</span>
-              <small>${ready ? `${App.PRICE_LABEL[App.settings.priceType]} de TCGplayer en dólares · precios del ${fdate(Prices.updated)} · ${App.settings.printing === 'base' ? 'versión común' : 'versión más barata'} de cada carta` : esc(Prices.statusText())}</small>
-            </div>
-            ${warns.length ? `<div class="warns">${warns.map(w => `<div class="banner tone-${w[0]}"><span>${esc(w[1])}</span></div>`).join('')}</div>` : ''}
-            <div class="vact">${actions}
-            </div>
-          </div>
-          ${share}
-          ${typeof Stars !== 'undefined' ? (ro ? Stars.groupBlock(this.gid, d) : Stars.ownBlock(d)) : ''}
-        </div>
-        <div class="card">
-          <div class="lhead">
-            <h2>Cartas</h2>
-            <div class="seg" role="radiogroup" aria-label="Cómo ver las cartas">
-              <button type="button" role="radio" data-dview="lista" aria-checked="${!grid}">${App.ICONS.list}Lista</button>
-              <button type="button" role="radio" data-dview="imagenes" aria-checked="${grid}">${App.ICONS.grid}Imágenes</button>
-            </div>
-          </div>
-          <div class="seg sortseg" role="radiogroup" aria-label="Ordenar">
-            <button type="button" role="radio" data-sort="lista" aria-checked="${this.sort === 'lista'}">Como la cargué</button>
-            <button type="button" role="radio" data-sort="caras" aria-checked="${this.sort === 'caras'}">Más caras primero</button>
-          </div>
-          <p class="hint">${grid ? (ro ? 'Tocá una carta para ver su ficha y sus versiones.' : 'Tocá una carta para cambiar cuántas copias tenés o qué versión usás.') : (ro ? 'Tocá una carta para ver todas sus versiones y sus precios.' : 'Tocá una carta para ver todas sus versiones y elegir cuál tenés o querés comprar.')}</p>
-          ${grid ? `<div class="cgrid">${lines}</div>` : `<ul class="clist">${lines}</ul>`}
-        </div>
+    const which = App.settings.printing === 'base' ? 'la versión común' : 'la versión más barata';
+    return `${weight}
+      <div class="card"><h2>De dónde sale</h2>
+        <p class="note">Es la ${esc(App.PRICE_LABEL[App.settings.priceType].toLowerCase())} de lo publicado en TCGplayer, en dólares y sin envío, con precios del ${esc(fdate(Prices.updated))}. De cada carta se toma ${which}, salvo que elijas otra en la lista. <a href="#ajustes">Cambiar en Ajustes</a></p>
+        ${p.missing ? `<div class="banner tone-warn"><span>${plural(p.missing, 'carta no tiene', 'cartas no tienen')} precio en TCGplayer y no suman al total.</span></div>` : ''}
+        ${p.approx ? `<p class="note">${plural(p.approx, 'carta usa', 'cartas usan')} otro precio porque falta la ${esc(App.PRICE_LABEL[App.settings.priceType].toLowerCase())}.</p>` : ''}
       </div>`;
   },
   optionsHTML(r) {
@@ -338,39 +396,60 @@ App.register({
     let h = row('', 'Automática', `${App.settings.printing === 'base' ? 'Versión común' : 'La más barata'}: ${esc(auto ? auto.name : '')}`, auto ? money(Prices.value(auto).v) : '—', '', !c.pick);
     h += sorted.map(o => {
       const v = Prices.value(o);
-      return row(o.key, esc(o.name), `${esc(o.group.name || o.group.abbr)}${o.rarity ? ' · ' + esc(o.rarity) : ''}${o.sub && o.sub !== 'Normal' ? ' · ' + esc(o.sub) : ''}`,
-        v.v == null ? 'sin precio' : money(v.v), `<a href="${Prices.url(o)}" target="_blank" rel="noopener">Ver en TCGplayer</a>`, c.pick === o.key);
+      return row(o.key, esc(o.name), `${esc(o.group.name || o.group.abbr)}${o.rarity ? ', ' + esc(o.rarity) : ''}${o.sub && o.sub !== 'Normal' ? ', ' + esc(o.sub) : ''}`,
+        v.v == null ? 'Sin precio' : money(v.v), `<a href="${Prices.url(o)}" target="_blank" rel="noopener">Ver en TCGplayer</a>`, c.pick === o.key);
     }).join('');
     return `<div class="opts">${h}</div>`;
+  },
+  // guarda lo escrito antes de rehacer el formulario (por ejemplo, al cambiar cómo cargar las cartas)
+  keepDraft() {
+    const n = App.$('#ed-name'), l = App.$('#ed-list');
+    this.draft = { name: n ? n.value : (this.draft ? this.draft.name : ''), list: l ? l.value : (this.draft ? this.draft.list : '') };
   },
   renderEditor() {
     const { esc, ICONS } = App;
     const d = this.deck;
-    this.el.innerHTML = `
-      <a class="back" href="${d ? `#mazo/${encodeURIComponent(d.id)}` : '#mazos'}">← ${d ? 'Volver al mazo' : 'Mazos'}</a>
-      <div class="vhead"><div><h1>${d ? 'Editar lista' : 'Nuevo mazo'}</h1><p>${d ? 'Cambiá la lista a mano o sumá cartas mirando las imágenes.' : 'Elegí las cartas mirando las imágenes o pegá la lista del simulador.'}</p></div></div>
-      <div class="card">
-        <div><label class="flabel" for="ed-name">Nombre</label><input class="field" id="ed-name" maxlength="60" value="${esc(d ? d.name : '')}" placeholder="Ej.: Luffy Morado/Negro"></div>
-        ${d ? '' : `<div class="visual-way">
-          <button type="button" class="btn primary" data-act="visual">${ICONS.cartas}Elegir cartas con imágenes</button>
-          <small>Se abre el índice de cartas: tocá + en cada una que quieras sumar, en la versión que tengas.</small>
+    const dr = this.draft || { name: d ? d.name : '', list: d ? Decks.toText(d) : '' };
+    const listForm = `
+      <div><label class="flabel" for="ed-list">Lista</label>
+        <textarea class="field" id="ed-list" rows="${d ? 14 : 10}" spellcheck="false" autocapitalize="characters" placeholder="1xOP09-061&#10;4xOP09-069&#10;4 ST26-003 Nico Robin">${esc(dr.list)}</textarea>
+        <details class="help"><summary>Qué formatos sirven</summary><p>Una carta por línea: “4xOP12-034”, “4 OP12-034 Perona” u “OP12-034 x4”. Si una carta aparece dos veces, se suman.</p></details>
+      </div>
+      <div class="check" id="ed-check" aria-live="polite"></div>
+      <div id="ed-preview"></div>`;
+    const way = d ? 'lista' : this.way;
+    const choice = d ? '' : `
+      <div><span class="flabel" id="way-lab">Cómo cargás las cartas</span>
+        <div class="choice" role="radiogroup" aria-labelledby="way-lab">
+          <button type="button" role="radio" data-way="visual" aria-checked="${way === 'visual'}"><span class="ic">${ICONS.cartas}</span><b>Con imágenes</b><small>Las buscás en el índice y sumás las que quieras.</small></button>
+          <button type="button" role="radio" data-way="lista" aria-checked="${way === 'lista'}"><span class="ic">${ICONS.paste}</span><b>Pegando una lista</b><small>La del simulador o de cualquier página de mazos.</small></button>
         </div>
-        <div class="or"><span>o pegá una lista</span></div>`}
-        <div><label class="flabel" for="ed-list">Lista</label>
-          <textarea class="field" id="ed-list" rows="${d ? 14 : 8}" spellcheck="false" autocapitalize="characters" placeholder="1xOP09-061&#10;4xOP09-069&#10;4 ST26-003 Nico Robin">${esc(d ? Decks.toText(d) : '')}</textarea></div>
-        <p class="hint">Sirven “4xOP12-034”, “4 OP12-034 Perona” u “OP12-034 x4”. Si una carta aparece dos veces, se suman.</p>
-        <div class="check" id="ed-check" aria-live="polite"></div>
-        <div id="ed-preview"></div>
-        <div class="vact">
-          <button type="button" class="btn${d ? ' primary' : ''}" data-act="save">${d ? 'Guardar' : 'Guardar lista'}</button>
-          ${d ? `<button type="button" class="btn" data-act="visual">${ICONS.cartas}Sumar con imágenes</button>` : ''}
-          <button type="button" class="btn ghost" data-act="cancel">Cancelar</button>
+      </div>`;
+    const buttons = d
+      ? `<button type="button" class="btn primary" data-act="save">Guardar</button>
+         <button type="button" class="btn" data-act="visual">${ICONS.cartas}Sumar con imágenes</button>
+         <button type="button" class="btn ghost" data-act="cancel">Cancelar</button>`
+      : way === 'visual'
+        ? `<button type="button" class="btn primary" data-act="visual">${ICONS.cartas}Empezar a elegir cartas</button>
+           <button type="button" class="btn ghost" data-act="cancel">Cancelar</button>`
+        : `<button type="button" class="btn primary" data-act="save">Guardar mazo</button>
+           <button type="button" class="btn ghost" data-act="cancel">Cancelar</button>`;
+    this.el.innerHTML = `
+      <a class="back" href="${d ? `#mazo/${encodeURIComponent(d.id)}` : '#mazos'}">${ICONS.back}${d ? 'Volver al mazo' : 'Mazos'}</a>
+      <div class="ed">
+        <h1>${d ? 'Editar lista' : 'Nuevo mazo'}</h1>
+        <div class="card">
+          <div><label class="flabel" for="ed-name">Nombre</label><input class="field" id="ed-name" maxlength="60" value="${esc(dr.name)}" placeholder="Ej.: Luffy Morado/Negro"></div>
+          ${choice}
+          ${way === 'lista' ? listForm : ''}
+          <div class="vact">${buttons}</div>
         </div>
       </div>`;
     this.check();
     this.preview();
-    if (!d) setTimeout(() => { const n = App.$('#ed-name'); if (n) n.focus(); }, 0);
+    if (this.focusName) { this.focusName = false; setTimeout(() => { const n = App.$('#ed-name'); if (n) n.focus(); }, 0); }
   },
+  listText() { const ta = App.$('#ed-list'); return ta ? ta.value : (this.draft ? this.draft.list : ''); },
   // cómo queda el mazo, con las imágenes de las cartas que vas escribiendo
   preview() {
     const { esc, Prices } = App;
@@ -393,8 +472,9 @@ App.register({
   },
   // guarda lo que haya escrito y abre el índice en modo armado
   goVisual() {
-    const name = App.$('#ed-name').value.trim();
-    const r = Decks.parse(App.$('#ed-list').value);
+    const n = App.$('#ed-name');
+    const name = (n ? n.value : '').trim();
+    const r = Decks.parse(this.listText());
     let deck = this.deck;
     if (deck) {
       const picks = new Map(deck.cards.map(c => [c.num, c.pick]));
@@ -404,14 +484,14 @@ App.register({
     } else {
       deck = Decks.add(Decks.make(name, r.cards));
     }
-    this.editing = false;
+    this.editing = false; this.draft = null;
     App.go('cartas', `mazo:${deck.id}`);
   },
   check() {
     const { esc, Prices, plural } = App;
-    const box = App.$('#ed-check');
-    if (!box) return;
-    const r = Decks.parse(App.$('#ed-list').value);
+    const box = App.$('#ed-check'), ta = App.$('#ed-list');
+    if (!box || !ta) return;
+    const r = Decks.parse(ta.value);
     const total = r.cards.reduce((s, c) => s + c.qty, 0);
     const unknown = Prices.state === 'ok' ? r.cards.filter(c => !Prices.options(c.num).length).map(c => c.num) : [];
     const parts = [];
@@ -421,9 +501,11 @@ App.register({
     box.innerHTML = parts.join('');
   },
   saveEdit() {
-    const name = App.$('#ed-name').value.trim();
-    const r = Decks.parse(App.$('#ed-list').value);
+    const n = App.$('#ed-name');
+    const name = (n ? n.value : '').trim();
+    const r = Decks.parse(this.listText());
     if (!r.cards.length) { App.toast('La lista está vacía: pegá al menos una carta'); return; }
+    this.draft = null;
     if (this.deck) {
       const picks = new Map(this.deck.cards.map(c => [c.num, c.pick]));
       this.deck.cards = r.cards.map(c => ({ num: c.num, qty: c.qty, pick: picks.get(c.num) || null }));

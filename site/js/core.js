@@ -47,6 +47,9 @@ const App = (() => {
     grupo: svg('<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2A5 5 0 0 1 21 19"/>'),
     cuenta: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>'),
     dup: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/><path d="M14 11v6M11 14h6"/>'),
+    more: svg('<circle cx="12" cy="5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="19" r="1.3" fill="currentColor"/>'),
+    back: svg('<path d="M19 12H5M11 6l-6 6 6 6"/>'),
+    paste: svg('<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h6M9 18h3"/>'),
   };
 
   // ---- registro de herramientas ----
@@ -275,9 +278,19 @@ const App = (() => {
     norm,
   };
 
+  // menús de más opciones (<details class="menu">): se cierran al tocar afuera, al elegir algo o con Escape
+  const closeMenus = keep => $$('details.menu[open]').forEach(m => { if (m !== keep) m.open = false; });
+  document.addEventListener('click', e => {
+    const m = e.target.closest('details.menu');
+    if (!m) { closeMenus(); return; }
+    if (e.target.closest('.menu-list button, .menu-list a')) setTimeout(() => { m.open = false; }, 0);
+    else closeMenus(m);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+
   function start() {
     renderNav();
-    window.addEventListener('hashchange', route);
+    window.addEventListener('hashchange', () => { closeMenus(); route(); });
     route();
     Prices.load();
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -302,7 +315,7 @@ const App = (() => {
   }
 
   // número de versión: tiene que coincidir con CACHE en sw.js ('bitacora-vN'); se muestra en Ajustes
-  const VERSION = 9;
+  const VERSION = 10;
 
   return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, PRICE_ORDER, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start, VERSION };
 })();
@@ -327,10 +340,9 @@ App.register({
     const tone = Prices.state === 'ok' ? '' : Prices.state === 'loading' ? '' : 'tone-warn';
     this.el.innerHTML = `
       <div class="hero">
-        <h1>¿Cuánto vale <span>tu mazo?</span></h1>
+        <h1>¿Cuánto vale tu mazo?</h1>
         <p>Guardá tus listas, mirá su precio en TCGplayer carta por carta y usá las herramientas para jugar mejor, en el celular o en la PC.</p>
       </div>
-      <hr class="rule">
       ${tone ? `<div class="banner ${tone}"><b>Precios</b><span>${esc(Prices.statusText())}</span></div>` : `<p class="note">${esc(Prices.statusText())}</p>`}
       <div class="tools">${cards}</div>`;
   },

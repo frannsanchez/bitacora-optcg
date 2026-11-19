@@ -307,7 +307,7 @@ App.register({
     const num = this.num, c = Cards.get(num), deck = this.deck;
     const opts = Prices.options(num);
     const name = (c && c.name) || Prices.cardName(num) || num;
-    const back = deck ? `<a class="back" href="#mazo/${encodeURIComponent(deck.id)}">← ${esc(deck.name)}</a>` : `<a class="back" href="#cartas">← Cartas</a>`;
+    const back = deck ? `<a class="back" href="#mazo/${encodeURIComponent(deck.id)}">${App.ICONS.back}${esc(deck.name)}</a>` : `<a class="back" href="#cartas">${App.ICONS.back}Cartas</a>`;
     if (!c && !opts.length) {
       this.el.innerHTML = `${back}<div class="card"><p class="note">${Cards.state === 'loading' || Prices.state === 'loading' ? 'Cargando…' : `No encontré la carta ${esc(num)}.`}</p></div>`;
       return;
