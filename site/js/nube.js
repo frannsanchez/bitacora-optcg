@@ -16,7 +16,7 @@ const Cloud = (() => {
 
   const emit = () => { App.emit('cloud', st); paintAccount(); };
   const normUser = u => String(u || '').trim().toLowerCase();
-  // el código del grupo no distingue mayúsculas, tildes ni espacios: "La Forja" = "laforja"
+  // el código del grupo no distingue mayúsculas, tildes ni espacios: "Mi Grupo" = "migrupo"
   const normCode = c => String(c || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '');
   const toEmail = u => `${u}@${DOMAIN}`;
 
