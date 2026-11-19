@@ -121,7 +121,7 @@ App.register({
   init(el) {
     this.el = el; this.sort = 'lista'; this.open = new Set();
     const again = () => { if (App.currentId() === 'mazo' && !this.editing && this.deck) this.render(); };
-    App.on('prices', again); App.on('settings', again);
+    App.on('prices', again); App.on('settings', again); App.on('cards', again);
     // si la sincronización trae una versión nueva del mazo abierto, la mostramos
     App.on('decks', () => {
       if (App.currentId() !== 'mazo' || this.editing || this.ro || !this.deck) return;
@@ -154,6 +154,8 @@ App.register({
       }
       const sb = t.closest('[data-sort]');
       if (sb) { this.sort = sb.dataset.sort; this.render(); return; }
+      const vb = t.closest('[data-dview]');
+      if (vb) { App.setSetting('deckView', vb.dataset.dview); return; }
       const line = t.closest('.cl-main');
       if (line) {
         const num = line.dataset.num;
@@ -172,6 +174,7 @@ App.register({
   },
   show(param) {
     this.ro = false;
+    App.Cards.load(); // nombres, líder e imágenes
     if (param && param.startsWith('nube:')) return this.showShared(param.slice(5));
     this.isNew = param === 'nuevo';
     this.deck = this.isNew ? null : Decks.get(param);
@@ -216,16 +219,26 @@ App.register({
 
     let rows = p.rows.slice();
     if (this.sort === 'caras') rows.sort((a, b) => (b.sub ?? -1) - (a.sub ?? -1));
+    const grid = App.settings.deckView === 'imagenes';
+    const pidOf = r => (r.chosen && r.chosen.pid) || CardUI.basePid(r.c.num);
     const lines = rows.map(r => {
       const c = r.c, ch = r.chosen;
       const name = ch ? (Prices.cardName(c.num) || ch.name) : (ready ? 'No está en los datos de TCGplayer' : c.num);
-      const variant = ch ? [ch.group.abbr || ch.group.name, Prices.isBase(ch) ? '' : (ch.name.match(/\(([^)]*)\)/g) || []).join(' ').replace(/[()]/g, ''), c.pick ? 'elegida' : ''].filter(Boolean).join(' · ') : '';
+      const variant = ch ? [ch.group.abbr || ch.group.name, Prices.variant(ch), c.pick ? 'elegida' : ''].filter(Boolean).join(' · ') : '';
       const isL = k.leader && k.leader.num === c.num;
+      if (grid) {
+        const href = `#carta/${encodeURIComponent(this.ro ? c.num : `${c.num}@${d.id}`)}`;
+        return `<a class="ctile deckt" href="${href}">
+          <span class="cimg">${CardUI.img(pidOf(r), name)}<span class="qbadge">×${c.qty}</span>${isL ? '<span class="lbadge">Líder</span>' : ''}</span>
+          <span class="cmeta"><b>${esc(name)}</b><small>${esc(c.num)}${ch && Prices.variant(ch) ? ' · ' + esc(Prices.variant(ch)) : ''}</small><span class="cprice${r.unit == null ? ' miss' : ''}">${r.unit == null ? 'sin precio' : money(r.sub)}</span></span>
+        </a>`;
+      }
       const open = this.open.has(c.num);
       const opts = open ? this.optionsHTML(r) : '';
       return `<li class="cline">
         <button type="button" class="cl-main" data-num="${esc(c.num)}" aria-expanded="${open}">
           <span class="q">${c.qty}×</span>
+          ${CardUI.img(pidOf(r), '', 200, 'thumb')}
           <span class="nm"><b>${esc(name)}${isL ? '<span class="badge">Líder</span>' : ''}</b><small>${esc(c.num)}${variant ? ' · ' + esc(variant) : ''}</small></span>
           <span class="pr${r.unit == null ? ' miss' : ''}"><b>${r.unit == null ? 'sin precio' : money(r.sub)}</b>${r.unit != null && c.qty > 1 ? `<small>${money(r.unit)} c/u</small>` : ''}${r.approx ? '<small>precio aproximado</small>' : ''}</span>
         </button>
@@ -246,7 +259,8 @@ App.register({
     const actions = ro ? `
               <button type="button" class="btn primary" data-act="mine">${App.ICONS.dup}Copiar a mis mazos</button>
               <button type="button" class="btn" data-act="copy">${App.ICONS.copy}Copiar lista</button>` : `
-              <button type="button" class="btn" data-act="edit">${App.ICONS.edit}Editar</button>
+              <a class="btn primary" href="#cartas/mazo:${encodeURIComponent(d.id)}">${App.ICONS.plus}Agregar cartas</a>
+              <button type="button" class="btn" data-act="edit">${App.ICONS.edit}Editar lista</button>
               <button type="button" class="btn" data-act="copy">${App.ICONS.copy}Copiar lista</button>
               <button type="button" class="btn ghost" data-act="dup">${App.ICONS.dup}Duplicar</button>
               <button type="button" class="btn ghost danger" data-act="del">${App.ICONS.trash}Borrar</button>`;
@@ -271,13 +285,17 @@ App.register({
         <div class="card">
           <div class="lhead">
             <h2>Cartas</h2>
-            <div class="seg" role="radiogroup" aria-label="Ordenar">
-              <button type="button" role="radio" data-sort="lista" aria-checked="${this.sort === 'lista'}">Lista</button>
-              <button type="button" role="radio" data-sort="caras" aria-checked="${this.sort === 'caras'}">Más caras</button>
+            <div class="seg" role="radiogroup" aria-label="Cómo ver las cartas">
+              <button type="button" role="radio" data-dview="lista" aria-checked="${!grid}">${App.ICONS.list}Lista</button>
+              <button type="button" role="radio" data-dview="imagenes" aria-checked="${grid}">${App.ICONS.grid}Imágenes</button>
             </div>
           </div>
-          <p class="hint">${ro ? 'Tocá una carta para ver todas sus versiones y sus precios.' : 'Tocá una carta para ver todas sus versiones y elegir cuál tenés o querés comprar.'}</p>
-          <ul class="clist">${lines}</ul>
+          <div class="seg sortseg" role="radiogroup" aria-label="Ordenar">
+            <button type="button" role="radio" data-sort="lista" aria-checked="${this.sort === 'lista'}">Como la cargué</button>
+            <button type="button" role="radio" data-sort="caras" aria-checked="${this.sort === 'caras'}">Más caras primero</button>
+          </div>
+          <p class="hint">${grid ? (ro ? 'Tocá una carta para ver su ficha y sus versiones.' : 'Tocá una carta para cambiar cuántas copias tenés o qué versión usás.') : (ro ? 'Tocá una carta para ver todas sus versiones y sus precios.' : 'Tocá una carta para ver todas sus versiones y elegir cuál tenés o querés comprar.')}</p>
+          ${grid ? `<div class="cgrid">${lines}</div>` : `<ul class="clist">${lines}</ul>`}
         </div>
       </div>`;
   },

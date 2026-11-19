@@ -303,6 +303,70 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; background:
 .print .pp span.sel b { color: var(--accent-2); font-size: 17px; }
 .print .pp a { margin-left: auto; font-weight: 600; font-size: 14px; }
 
+/* ---------- índice de cartas ---------- */
+.filters { gap: 12px; }
+.frow { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.fsel { display: grid; gap: 4px; min-width: 0; }
+.fsel > span { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+select.field { appearance: none; -webkit-appearance: none; padding-right: 34px; background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+.colors { display: flex; flex-wrap: wrap; gap: 6px; }
+.cchip { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); font-weight: 600; font-size: 15px; }
+.cchip[aria-pressed="true"] { border-color: var(--accent); background: rgba(216, 178, 74, .18); color: var(--accent-2); }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); margin-right: 4px; vertical-align: -1px; flex-shrink: 0; }
+.cgrid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(46%, 150px), 1fr)); }
+.ctile { display: grid; gap: 6px; align-content: start; color: var(--ink); text-decoration: none; position: relative; }
+.ctile .cimg { display: block; position: relative; border-radius: 10px; overflow: hidden; background: var(--surface-2); aspect-ratio: 200 / 279; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.ctile .cimg img, .ctile .cimg .noimg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ctile:hover .cimg { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ctile.in .cimg { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cmeta { display: grid; gap: 1px; min-width: 0; }
+.cmeta b { font-size: 15px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmeta small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cprice { font-weight: 700; color: var(--accent-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+.cprice.miss { color: var(--warn); }
+.cqty { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+.cqty button { height: 38px; border: 0; background: transparent; font-size: 22px; font-weight: 700; color: var(--accent-2); }
+.cqty button:active { background: var(--line); }
+.cqty .qv { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cqty.big { grid-template-columns: 48px 56px 48px; }
+.cqty.big button { height: 46px; }
+.noimg { display: block; background: repeating-linear-gradient(135deg, var(--surface-2) 0 10px, var(--surface) 10px 20px); }
+.qbadge { position: absolute; right: 6px; bottom: 6px; background: rgba(6,14,38,.9); color: var(--accent-2); border: 1px solid var(--accent); font-weight: 700; border-radius: 8px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.lbadge { position: absolute; left: 6px; top: 6px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; border-radius: 5px; padding: 1px 6px; }
+.builder { position: sticky; top: calc(64px + env(safe-area-inset-top)); z-index: 15; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--accent); background: rgba(16, 34, 76, .95); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.builder > div { display: grid; gap: 1px; min-width: 0; }
+.builder small { color: var(--accent-2); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.builder b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.builder span { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+@media (min-width: 900px) { .builder { top: 12px; } }
+.cdetail { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.cd-img { max-width: 360px; width: 100%; margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.45); aspect-ratio: 200 / 279; background: var(--surface-2); }
+.cd-img img, .cd-img .noimg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cd-name { font-family: var(--f-display); font-weight: 700; font-size: 28px; line-height: 1.15; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.facts span { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 3px 9px; font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+.subt { margin: 0; color: var(--accent-2); font-weight: 600; }
+.ctext { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--bg); border-radius: 0 10px 10px 0; line-height: 1.5; }
+.kwe { color: var(--accent-2); font-weight: 700; }
+.indeck { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 4px; border-top: 1px solid var(--line); }
+.indeck .fsel { flex: 1 1 200px; }
+.usepick { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.usepick input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
+.usepick.auto { padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; }
+@media (min-width: 760px) {
+  .cdetail { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: start; }
+  .cd-img { margin: 0; }
+}
+/* miniaturas en la lista del mazo */
+.cl-main { grid-template-columns: 34px 40px minmax(0, 1fr) auto; }
+.cl-main .thumb { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; display: block; background: var(--surface-2); }
+.cl-main .noimg.thumb { width: 40px; height: 56px; border-radius: 4px; }
+.opts { padding-left: 84px; }
+.sortseg { margin-top: -6px; }
+.sortseg button { flex: 0 1 auto; font-size: 14px; min-height: 34px; }
+.seg button svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; }
+@media (max-width: 420px) { .opts { padding-left: 0; } }
+
 /* ---------- calculadora de letal ---------- */
 .letal-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 .letal-in { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }

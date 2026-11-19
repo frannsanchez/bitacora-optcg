@@ -1,7 +1,7 @@
 // Guarda la app en el dispositivo para que abra sin conexión.
 // Los precios se buscan primero en internet y, si no hay, se usan los últimos guardados.
-const CACHE = 'bitacora-v3';
-const CORE = ['./', 'index.html', 'css/app.css', 'js/core.js', 'js/mazos.js', 'js/buscar.js', 'js/ajustes.js', 'js/nube.js',
+const CACHE = 'bitacora-v4';
+const CORE = ['./', 'index.html', 'css/app.css', 'js/core.js', 'js/mazos.js', 'js/cartas.js', 'js/ajustes.js', 'js/nube.js',
   'js/firebase-config.js', 'js/letal-engine.js', 'js/letal.js', 'js/letal-worker.js', 'manifest.webmanifest',
   'img/icon-180.png', 'img/icon-192.png', 'img/icon-512.png'];
 
@@ -24,7 +24,7 @@ self.addEventListener('fetch', e => {
   if (!same && !font && !sdk) return;
 
   // precios y configuración de Firebase: primero internet, así se ven los cambios enseguida
-  if (same && (url.pathname.endsWith('/data/prices.json') || url.pathname.endsWith('/js/firebase-config.js'))) {
+  if (same && (url.pathname.endsWith('/data/prices.json') || url.pathname.endsWith('/data/cards.json') || url.pathname.endsWith('/js/firebase-config.js'))) {
     e.respondWith(fetch(req).then(res => put(req, res)).catch(async () => (await caches.match(req, { ignoreSearch: true })) || new Response('', { status: 504 })));
     return;
   }

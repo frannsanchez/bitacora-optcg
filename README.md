@@ -4,7 +4,7 @@ App para el celular y la PC con:
 
 - **Mazos**: cargás listas y te muestra el precio del mazo completo y de cada carta en TCGplayer.
 - **Grupo**: cada amigo tiene su usuario y contraseña, y todos ven las listas de todos.
-- **Buscar carta**: todas las versiones de una carta con su precio Market, Low y Mid.
+- **Cartas**: índice con la imagen de cada carta, filtros por edición, color, tipo y costo, búsqueda por nombre, tripulación o texto, y la ficha de cada carta con todas sus versiones y precios. Desde un mazo, "Agregar cartas" abre el índice para sumar o sacar copias con + y −.
 - **Calculadora de letal**.
 
 Los precios son de TCGplayer, en dólares y sin envío. Llegan a través de [TCGCSV](https://tcgcsv.com), un espejo gratuito de los datos de TCGplayer que se actualiza una vez por día. Una tarea de GitHub los baja todas las noches y los publica junto con la app.
@@ -60,7 +60,7 @@ site/                 lo que se publica
   css/app.css         colores y componentes compartidos
   js/core.js          navegación, guardado, precios y registro de herramientas
   js/mazos.js         mazos y precios
-  js/buscar.js        buscador de cartas
+  js/cartas.js        índice de cartas, ficha y armado de mazos
   js/letal*.js        calculadora de letal
   js/ajustes.js       ajustes y respaldo
   js/nube.js          usuarios, grupo y sincronización con Firebase

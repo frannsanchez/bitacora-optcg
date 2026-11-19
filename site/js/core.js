@@ -22,7 +22,7 @@ const App = (() => {
 
   // ---- ajustes ----
   const SKEY = 'bitacora-ajustes-v1';
-  const settings = Object.assign({ priceType: 'market', printing: 'barata' }, store.get(SKEY, {}));
+  const settings = Object.assign({ priceType: 'market', printing: 'barata', deckView: 'lista' }, store.get(SKEY, {}));
   function setSetting(k, v) { settings[k] = v; store.set(SKEY, settings); emit('settings', settings); }
   const PRICE_LABEL = { market: 'Market', low: 'Low', mid: 'Mid' };
 
@@ -32,6 +32,9 @@ const App = (() => {
     inicio: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'),
     mazos: svg('<rect x="6" y="3" width="12" height="17" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2h10"/><path d="M10 9h4M10 13h4"/>'),
     buscar: svg('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>'),
+    cartas: svg('<rect x="3" y="4" width="8" height="11" rx="1.5"/><rect x="13" y="4" width="8" height="11" rx="1.5"/><path d="M3 19h18"/>'),
+    grid: svg('<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>'),
+    list: svg('<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'),
     letal: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'),
     ajustes: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
     copy: svg('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
@@ -64,8 +67,10 @@ const App = (() => {
     return i < 0 ? { id: h, param: null } : { id: h.slice(0, i), param: h.slice(i + 1) };
   }
   function go(id, param) { location.hash = param ? `${id}/${encodeURIComponent(param)}` : id; }
+  const ALIAS = { buscar: 'cartas' }; // direcciones viejas que siguen funcionando
   function route() {
-    const { id, param } = parseHash();
+    const { id: raw, param } = parseHash();
+    const id = ALIAS[raw] || raw;
     const t = tools.find(x => x.id === id) || tools.find(x => x.id === 'inicio');
     if (current && current !== t && current.hide) current.hide();
     $$('main > .view').forEach(v => { v.hidden = v.id !== `view-${t.id}`; });
@@ -149,7 +154,9 @@ const App = (() => {
       return { v: null, from: null, approx: false };
     },
     options(num) { return this.byNum.get(String(num).toUpperCase()) || []; },
-    isBase(e) { return !/\(/.test(e.name); },
+    // "Monkey.D.Luffy (061)" es la versión común; "(Parallel)", "(Manga)", etc. son otras versiones
+    isBase(e) { return !/\((?!\d+\))[^)]*\)/.test(e.name); },
+    variant(e) { return (e.name.match(/\(([^)]*)\)/g) || []).map(x => x.slice(1, -1)).filter(x => !/^\d+$/.test(x)).join(' · '); },
     choose(opts, pick) {
       if (!opts.length) return null;
       if (pick) { const p = opts.find(o => o.key === pick); if (p) return p; }
@@ -165,10 +172,13 @@ const App = (() => {
     cardName(num) {
       const o = this.options(num);
       if (!o.length) return null;
+      const c = Cards.get(num); if (c && c.name) return c.name;
       const best = o.slice().sort((a, b) => (a.name.match(/\(/g) || []).length - (b.name.match(/\(/g) || []).length || a.name.length - b.name.length)[0];
       return best.name.replace(/\s*\([^)]*\)/g, '').trim() || best.name;
     },
-    isLeader(num) { return this.options(num).some(e => e.rarity === 'L'); },
+    isLeader(num) { const c = Cards.get(num); if (c && c.type) return c.type === 'Leader'; return this.options(num).some(e => e.rarity === 'L'); },
+    // la versión más barata con precio, para mostrar "desde $x"
+    cheapest(num) { const o = this.options(num).filter(e => this.value(e).v != null); return o.length ? o.reduce((a, b) => (this.value(b).v < this.value(a).v ? b : a)) : null; },
     search(q, limit = 30) {
       const words = norm(q).split(' ').filter(Boolean);
       if (!words.length) return [];
@@ -181,7 +191,7 @@ const App = (() => {
       return [...out.entries()].map(([num, list]) => ({ num, list }));
     },
     url(e) { return `https://www.tcgplayer.com/product/${e.pid}`; },
-    img(e) { return `https://tcgplayer-cdn.tcgplayer.com/product/${e.pid}_200w.jpg`; },
+    img(e, size = 200) { return imgUrl(e.pid, size); },
     statusText() {
       if (this.state === 'ok') return `Precios ${PRICE_LABEL[settings.priceType]} de TCGplayer del ${fdate(this.updated)}`;
       if (this.state === 'loading') return 'Cargando precios…';
@@ -189,6 +199,41 @@ const App = (() => {
       if (this.state === 'error') return 'No pude cargar los precios. Revisá tu conexión.';
       return '';
     },
+  };
+
+  // imagen de la carta en el CDN de TCGplayer (200 o 400 de ancho)
+  const imgUrl = (pid, size = 200) => (pid ? `https://tcgplayer-cdn.tcgplayer.com/product/${pid}_${size}w.jpg` : '');
+
+  // ---- fichas de cartas (data/cards.json): tipo, color, costo, texto e imagen. Se carga cuando hace falta ----
+  const COLOR_ES = { Red: 'Rojo', Green: 'Verde', Blue: 'Azul', Purple: 'Morado', Black: 'Negro', Yellow: 'Amarillo' };
+  const TYPE_ES = { Leader: 'Líder', Character: 'Personaje', Event: 'Evento', Stage: 'Escenario', 'DON!!': 'DON!!' };
+  const Cards = {
+    state: 'idle', error: null, map: new Map(), list: [], updated: null, _p: null,
+    load(force) {
+      if (this._p && !force) return this._p;
+      this.state = 'loading'; emit('cards', this);
+      this._p = fetch('data/cards.json', { cache: force ? 'reload' : 'no-cache' })
+        .then(r => { if (r.status === 404) return null; if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(j => { if (j) { this.index(j); this.state = 'ok'; } else this.state = this.list.length ? 'ok' : 'missing'; })
+        .catch(e => { this.error = String(e.message || e); this.state = this.list.length ? 'ok' : 'error'; this._p = null; })
+        .then(() => { emit('cards', this); return this; });
+      return this._p;
+    },
+    index(j) {
+      this.map = new Map(); this.list = []; this.updated = j.updated;
+      for (const [num, r] of Object.entries(j.cards || {})) {
+        const c = { num, name: r[0], type: r[1], colors: r[2] ? r[2].split(';') : [], cost: r[3], power: r[4], counter: r[5], life: r[6], attribute: r[7] || '', subtypes: r[8] ? r[8].split(';') : [], text: r[9] || '', pid: r[10], set: num.split('-')[0] };
+        c.qn = norm(`${c.name} ${c.num} ${c.subtypes.join(' ')}`);
+        c.qt = norm(c.text);
+        this.map.set(num, c); this.list.push(c);
+      }
+    },
+    get(num) { return this.map.get(String(num).toUpperCase()) || null; },
+    colorEs: c => COLOR_ES[c] || c,
+    typeEs: t => TYPE_ES[t] || t,
+    COLORS: Object.keys(COLOR_ES),
+    TYPES: ['Leader', 'Character', 'Event', 'Stage'],
+    norm,
   };
 
   function start() {
@@ -201,7 +246,7 @@ const App = (() => {
     }
   }
 
-  return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, start };
+  return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start };
 })();
 
 /* ---------- Inicio ---------- */
