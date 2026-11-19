@@ -22,9 +22,12 @@ const App = (() => {
 
   // ---- ajustes ----
   const SKEY = 'bitacora-ajustes-v1';
-  const settings = Object.assign({ priceType: 'market', printing: 'barata', deckView: 'lista' }, store.get(SKEY, {}));
+  const settings = Object.assign({ priceType: 'mid', printing: 'barata', deckView: 'lista' }, store.get(SKEY, {}));
+  // v2: el precio por defecto pasó a ser la mediana (Listed Median) de TCGplayer
+  if (!(settings.v >= 2)) { settings.priceType = 'mid'; settings.v = 2; store.set(SKEY, settings); }
   function setSetting(k, v) { settings[k] = v; store.set(SKEY, settings); emit('settings', settings); }
-  const PRICE_LABEL = { market: 'Market', low: 'Low', mid: 'Mid' };
+  const PRICE_LABEL = { mid: 'Mediana', market: 'Market', low: 'Low' };
+  const PRICE_ORDER = ['mid', 'market', 'low'];
 
   // ---- íconos (trazos simples) ----
   const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -116,9 +119,14 @@ const App = (() => {
 
   // ---- precios (archivo data/prices.json que arma la tarea diaria de GitHub) ----
   const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]+/g, ' ').trim();
+  // etiquetas del nombre de TCGplayer: "Shanks (004) (Alternate Art)" → ["Alternate Art"]; el número no cuenta
+  const NUMLIKE = /^(\d+|[A-Z]{1,4}\d{0,2}-?\d{2,3}[A-Z]?)$/i;
+  const tagsOf = n => [...String(n || '').matchAll(/\(([^)]*)\)|\[([^\]]*)\]/g)].map(m => (m[1] ?? m[2]).trim()).filter(t => t && !NUMLIKE.test(t));
+  const TAG_ES = { 'Parallel': 'Paralela', 'Alternate Art': 'Arte alternativo', 'Super Rare Alternate Art': 'Arte alternativo SR', 'Reprint': 'Reimpresión', 'Full Art': 'Arte completo', 'Textured Foil': 'Foil texturado', 'Winner': 'Ganador', 'Finalist': 'Finalista', 'Participant': 'Participante' };
+  const EVENT_ES = { RE: 'Release Event', PRE: 'Pre-Release', ANN: 'Aniversario' };
   const Prices = {
     state: 'idle', error: null, updated: null, source: {}, count: 0,
-    byNum: new Map(), all: [], groups: new Map(),
+    byNum: new Map(), byPid: new Map(), all: [], groups: new Map(), _common: new Map(),
     async load(force) {
       this.state = 'loading'; emit('prices', this);
       try {
@@ -134,14 +142,17 @@ const App = (() => {
       emit('prices', this);
     },
     index(j) {
-      this.groups = new Map((j.groups || []).map(g => [g[0], { id: g[0], name: g[1], abbr: g[2] }]));
-      this.byNum = new Map(); this.all = [];
+      this.groups = new Map((j.groups || []).map(g => [g[0], { id: g[0], name: g[1], abbr: g[2], date: g[3] || '' }]));
+      this.byNum = new Map(); this.byPid = new Map(); this.all = []; this._common = new Map();
       for (const r of j.cards || []) {
-        const e = { num: String(r[0]).toUpperCase(), name: r[1], rarity: r[2], group: this.groups.get(r[3]) || { id: r[3], name: '', abbr: '' }, pid: r[4], sub: r[5], market: r[6], low: r[7], mid: r[8] };
+        const e = { num: String(r[0]).toUpperCase(), name: r[1], rarity: r[2], group: this.groups.get(r[3]) || { id: r[3], name: '', abbr: '', date: '' }, pid: r[4], sub: r[5], market: r[6], low: r[7], mid: r[8] };
         e.key = `${e.pid}|${e.sub}`;
+        e.tags = tagsOf(e.name);
         e.q = norm(`${e.name} ${e.num} ${e.group.abbr}`);
         if (!this.byNum.has(e.num)) this.byNum.set(e.num, []);
         this.byNum.get(e.num).push(e);
+        if (!this.byPid.has(e.pid)) this.byPid.set(e.pid, []);
+        this.byPid.get(e.pid).push(e);
         this.all.push(e);
       }
       this.count = this.all.length; this.updated = j.updated; this.source = j.source || {};
@@ -149,14 +160,40 @@ const App = (() => {
     // precio según el ajuste elegido; si falta, usa el siguiente disponible
     value(e) {
       const t = settings.priceType;
-      const order = t === 'low' ? ['low', 'market', 'mid'] : t === 'mid' ? ['mid', 'market', 'low'] : ['market', 'mid', 'low'];
+      const order = [t, ...PRICE_ORDER.filter(k => k !== t)];
       for (const k of order) if (e[k] != null) return { v: e[k], from: k, approx: k !== order[0] };
       return { v: null, from: null, approx: false };
     },
     options(num) { return this.byNum.get(String(num).toUpperCase()) || []; },
-    // "Monkey.D.Luffy (061)" es la versión común; "(Parallel)", "(Manga)", etc. son otras versiones
-    isBase(e) { return !/\((?!\d+\))[^)]*\)/.test(e.name); },
-    variant(e) { return (e.name.match(/\(([^)]*)\)/g) || []).map(x => x.slice(1, -1)).filter(x => !/^\d+$/.test(x)).join(' · '); },
+    // de las filas de un mismo producto (Normal/Foil), la que tiene precio y es más barata
+    best(list) {
+      if (!list || !list.length) return null;
+      const priced = list.filter(e => this.value(e).v != null);
+      return priced.length ? priced.reduce((a, b) => (this.value(b).v < this.value(a).v ? b : a)) : list[0];
+    },
+    // la versión común es la que eligió la tarea diaria (cards.json); si todavía no cargó, la que no tiene etiquetas
+    isBase(e) { const c = Cards.get(e.num); return c && c.pid ? c.pid === e.pid : !e.tags.length; },
+    // etiquetas que están en todas las versiones de un número: son parte del nombre ("Mr.1 (Daz.Bonez)")
+    commonTags(num) {
+      num = String(num).toUpperCase();
+      if (!this._common.has(num)) {
+        const o = this.options(num);
+        const s = o.length > 1 ? new Set(o[0].tags.filter(t => o.every(e => e.tags.includes(t)))) : new Set();
+        this._common.set(num, s);
+      }
+      return this._common.get(num);
+    },
+    // qué tiene de distinto esta versión: "Paralela", "Arte alternativo · Manga", "Reimpresión"... ('' = la común)
+    variant(e) {
+      const c = Cards.get(e.num);
+      if (c && c.pid === e.pid) return '';
+      const common = this.commonTags(e.num);
+      const own = e.tags.filter(t => !common.has(t)).map(t => TAG_ES[t] || t);
+      if (own.length) return own.join(' · ');
+      if (!c) return '';
+      const suf = String(e.group.abbr || '').toUpperCase().trim().split(/\s+/)[1];
+      return EVENT_ES[suf] || 'Reimpresión';
+    },
     choose(opts, pick) {
       if (!opts.length) return null;
       if (pick) { const p = opts.find(o => o.key === pick); if (p) return p; }
@@ -193,7 +230,7 @@ const App = (() => {
     url(e) { return `https://www.tcgplayer.com/product/${e.pid}`; },
     img(e, size = 200) { return imgUrl(e.pid, size); },
     statusText() {
-      if (this.state === 'ok') return `Precios ${PRICE_LABEL[settings.priceType]} de TCGplayer del ${fdate(this.updated)}`;
+      if (this.state === 'ok') return `Precios de TCGplayer (${PRICE_LABEL[settings.priceType].toLowerCase()}) del ${fdate(this.updated)}`;
       if (this.state === 'loading') return 'Cargando precios…';
       if (this.state === 'missing') return 'Todavía no hay precios: corré la tarea “Publicar app y precios” en GitHub.';
       if (this.state === 'error') return 'No pude cargar los precios. Revisá tu conexión.';
@@ -211,12 +248,14 @@ const App = (() => {
     state: 'idle', error: null, map: new Map(), list: [], updated: null, _p: null,
     load(force) {
       if (this._p && !force) return this._p;
-      this.state = 'loading'; emit('cards', this);
+      this.state = 'loading';
+      // la promesa se guarda antes de avisar: quien escuche 'cards' y vuelva a llamar a load() recibe la misma
       this._p = fetch('data/cards.json', { cache: force ? 'reload' : 'no-cache' })
         .then(r => { if (r.status === 404) return null; if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(j => { if (j) { this.index(j); this.state = 'ok'; } else this.state = this.list.length ? 'ok' : 'missing'; })
         .catch(e => { this.error = String(e.message || e); this.state = this.list.length ? 'ok' : 'error'; this._p = null; })
         .then(() => { emit('cards', this); return this; });
+      emit('cards', this);
       return this._p;
     },
     index(j) {
@@ -251,7 +290,7 @@ const App = (() => {
     }
   }
 
-  return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start };
+  return { $, $$, esc, money, fdate, plural, store, on, emit, settings, setSetting, PRICE_LABEL, PRICE_ORDER, ICONS, register, tools, go, route, currentId, toast, copy, download, Prices, Cards, imgUrl, start };
 })();
 
 /* ---------- Inicio ---------- */

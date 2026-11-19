@@ -251,12 +251,13 @@ App.register({
   init(el) {
     this.el = el; this.who = null;
     const again = () => { if (App.currentId() === 'grupo') this.render(); };
-    App.on('group', again); App.on('prices', again); App.on('settings', again);
+    App.on('group', again); App.on('prices', again); App.on('settings', again); App.on('cards', again);
     App.on('cloud', () => { if (App.currentId() === 'grupo') { if (Cloud.state.status === 'in' && !Cloud.group) Cloud.loadGroup(); this.render(); } });
     el.addEventListener('click', e => { if (e.target.closest('#gr-reload')) { this.loading = true; this.render(); Cloud.loadGroup(true).then(() => { this.loading = false; this.render(); }); } });
   },
   show(param) {
     this.who = param || null;
+    App.Cards.load(); // imágenes de los líderes
     this.render();
     if (Cloud.state.status === 'in') Cloud.loadGroup().then(() => { if (App.currentId() === 'grupo') this.render(); });
   },
@@ -284,11 +285,14 @@ App.register({
       const p = ready ? Decks.price(d) : null;
       const mine = Cloud.me && d.owner === Cloud.me.uid;
       const lname = k.leader ? (Prices.cardName(k.leader.num) || k.leader.num) : null;
-      return `<a class="deck" href="#mazo/${encodeURIComponent(mine ? d.id : 'nube:' + d.id)}">
-        <small class="owner">${esc(d.ownerName)}${mine ? ' (vos)' : ''}</small>
-        <b>${esc(d.name)}</b>
-        <small>${lname ? `Líder: ${esc(lname)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</small>
-        ${p ? `<span class="price">${money(p.total)}</span>` : `<span class="price none">${esc(Prices.state === 'loading' ? 'Calculando…' : 'Sin precios todavía')}</span>`}
+      return `<a class="deck withimg" href="#mazo/${encodeURIComponent(mine ? d.id : 'nube:' + d.id)}">
+        <span class="dimg">${CardUI.leaderImg(d)}</span>
+        <span class="dinfo">
+          <small class="owner">${esc(d.ownerName)}${mine ? ' (vos)' : ''}</small>
+          <b>${esc(d.name)}</b>
+          <small>${lname ? `Líder: ${esc(lname)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</small>
+          ${p ? `<span class="price">${money(p.total)}</span>` : `<span class="price none">${esc(Prices.state === 'loading' ? 'Calculando…' : 'Sin precios todavía')}</span>`}
+        </span>
       </a>`;
     }).join('');
     this.el.innerHTML = `${head}

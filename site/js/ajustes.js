@@ -43,11 +43,11 @@ App.register({
       <div class="vhead"><div><h1>Ajustes</h1><p>Se guardan en este dispositivo.</p></div></div>
       <div class="card">
         <h2>Precio que se usa</h2>
-        ${seg('priceType', [['market', 'Market'], ['low', 'Low'], ['mid', 'Mid']])}
+        ${seg('priceType', [['mid', 'Mediana'], ['market', 'Market'], ['low', 'Low']])}
         <ul class="lines">
-          <li><span class="d"><b>Market</b><small>Lo que se viene pagando en las ventas recientes. Es el más usado para valuar.</small></span></li>
+          <li><span class="d"><b>Mediana</b><small>La mediana de los precios publicados en TCGplayer (“Listed Median” en su página). Es la que se usa si no elegís otra.</small></span></li>
+          <li><span class="d"><b>Market</b><small>Lo que se viene pagando en las ventas recientes.</small></span></li>
           <li><span class="d"><b>Low</b><small>La publicación más barata en este momento, sin envío.</small></span></li>
-          <li><span class="d"><b>Mid</b><small>La mediana de las publicaciones.</small></span></li>
         </ul>
         <p class="note">Si una carta no tiene el precio elegido, se usa el siguiente que tenga y se marca como aproximado.</p>
       </div>

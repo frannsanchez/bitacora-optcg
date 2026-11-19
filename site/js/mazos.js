@@ -87,21 +87,25 @@ App.register({
   init(el) {
     this.el = el;
     const again = () => { if (App.currentId() === 'mazos') this.show(); };
-    App.on('prices', again); App.on('settings', again); App.on('decks', again);
+    App.on('prices', again); App.on('settings', again); App.on('decks', again); App.on('cards', again);
   },
   show() {
     const { esc, money, Prices, plural } = App;
+    App.Cards.load(); // nombres e imágenes de los líderes
     const decks = Decks.all();
     const ready = Prices.state === 'ok';
     const items = decks.map(d => {
       const k = Decks.counts(d);
       const p = ready ? Decks.price(d) : null;
       const lname = k.leader ? (Prices.cardName(k.leader.num) || k.leader.num) : null;
-      return `<a class="deck" href="#mazo/${encodeURIComponent(d.id)}">
-        <b>${esc(d.name)}${d.ejemplo ? '<span class="badge soft">Ejemplo</span>' : ''}</b>
-        <small>${lname ? `Líder: ${esc(lname)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</small>
-        ${p ? `<span class="price">${money(p.total)}</span>${p.missing ? `<small>${plural(p.missing, 'carta', 'cartas')} sin precio</small>` : ''}`
-            : `<span class="price none">${esc(Prices.state === 'loading' ? 'Calculando…' : 'Sin precios todavía')}</span>`}
+      return `<a class="deck withimg" href="#mazo/${encodeURIComponent(d.id)}">
+        <span class="dimg">${CardUI.leaderImg(d)}</span>
+        <span class="dinfo">
+          <b>${esc(d.name)}${d.ejemplo ? '<span class="badge soft">Ejemplo</span>' : ''}</b>
+          <small>${lname ? `Líder: ${esc(lname)} · ` : ''}${plural(k.main, 'carta', 'cartas')}${k.leader ? ' + líder' : ''}</small>
+          ${p ? `<span class="price">${money(p.total)}</span>${p.missing ? `<small>${plural(p.missing, 'carta', 'cartas')} sin precio</small>` : ''}`
+              : `<span class="price none">${esc(Prices.state === 'loading' ? 'Calculando…' : 'Sin precios todavía')}</span>`}
+        </span>
       </a>`;
     }).join('');
     this.el.innerHTML = `
@@ -111,7 +115,7 @@ App.register({
       </div>
       ${typeof Cloud !== 'undefined' ? Cloud.listNote() : ''}
       ${!ready && Prices.state !== 'loading' ? `<div class="banner tone-warn"><b>Sin precios</b><span>${esc(Prices.statusText())} Igual podés cargar y guardar tus listas.</span></div>` : ''}
-      ${decks.length ? `<div class="decks">${items}</div>` : `<div class="card"><p class="note">Todavía no guardaste ningún mazo. Tocá “Nuevo mazo” y pegá la lista del simulador.</p></div>`}`;
+      ${decks.length ? `<div class="decks">${items}</div>` : `<div class="card"><p class="note">Todavía no guardaste ningún mazo. Tocá “Nuevo mazo” para elegir las cartas con imágenes o pegar la lista del simulador.</p></div>`}`;
   },
 });
 
@@ -120,7 +124,11 @@ App.register({
   id: 'mazo', title: 'Mazo', navAs: 'mazos', icon: App.ICONS.mazos,
   init(el) {
     this.el = el; this.sort = 'lista'; this.open = new Set();
-    const again = () => { if (App.currentId() === 'mazo' && !this.editing && this.deck) this.render(); };
+    const again = () => {
+      if (App.currentId() !== 'mazo') return;
+      if (this.editing) { this.check(); this.preview(); return; } // no rehacemos el formulario para no perder lo que escribiste
+      if (this.deck) this.render();
+    };
     App.on('prices', again); App.on('settings', again); App.on('cards', again);
     // si la sincronización trae una versión nueva del mazo abierto, la mostramos
     App.on('decks', () => {
@@ -137,6 +145,7 @@ App.register({
         this.editing = false; this.render(); return;
       }
       if (t.closest('[data-act="save"]')) { this.saveEdit(); return; }
+      if (t.closest('[data-act="visual"]')) { this.goVisual(); return; }
       if (t.closest('[data-act="copy"]') && deck) { App.copy(Decks.toText(deck), 'Lista copiada'); return; }
       if (t.closest('[data-act="mine"]') && deck) {
         const c = Decks.add(Decks.make(`${deck.name} (de ${deck.ownerName || 'otro jugador'})`, deck.cards));
@@ -170,7 +179,12 @@ App.register({
         if (c) { c.pick = t.value || null; Decks.update(this.deck); this.render(); }
       }
     });
-    el.addEventListener('input', e => { if (e.target.id === 'ed-list') this.check(); });
+    let ptimer = null;
+    el.addEventListener('input', e => {
+      if (e.target.id !== 'ed-list') return;
+      this.check();
+      clearTimeout(ptimer); ptimer = setTimeout(() => this.preview(), 250);
+    });
   },
   show(param) {
     this.ro = false;
@@ -227,9 +241,10 @@ App.register({
       const variant = ch ? [ch.group.abbr || ch.group.name, Prices.variant(ch), c.pick ? 'elegida' : ''].filter(Boolean).join(' · ') : '';
       const isL = k.leader && k.leader.num === c.num;
       if (grid) {
-        const href = `#carta/${encodeURIComponent(this.ro ? c.num : `${c.num}@${d.id}`)}`;
+        const pid = pidOf(r);
+        const href = `#carta/${encodeURIComponent(`${c.num}${pid ? '~' + pid : ''}${this.ro ? '' : '@' + d.id}`)}`;
         return `<a class="ctile deckt" href="${href}">
-          <span class="cimg">${CardUI.img(pidOf(r), name)}<span class="qbadge">×${c.qty}</span>${isL ? '<span class="lbadge">Líder</span>' : ''}</span>
+          <span class="cimg">${CardUI.img(pid, name)}<span class="qbadge">×${c.qty}</span>${isL ? '<span class="lbadge">Líder</span>' : ''}</span>
           <span class="cmeta"><b>${esc(name)}</b><small>${esc(c.num)}${ch && Prices.variant(ch) ? ' · ' + esc(Prices.variant(ch)) : ''}</small><span class="cprice${r.unit == null ? ' miss' : ''}">${r.unit == null ? 'sin precio' : money(r.sub)}</span></span>
         </a>`;
       }
@@ -319,24 +334,68 @@ App.register({
     return `<div class="opts">${h}</div>`;
   },
   renderEditor() {
-    const { esc } = App;
+    const { esc, ICONS } = App;
     const d = this.deck;
     this.el.innerHTML = `
       <a class="back" href="${d ? `#mazo/${encodeURIComponent(d.id)}` : '#mazos'}">← ${d ? 'Volver al mazo' : 'Mazos'}</a>
-      <div class="vhead"><div><h1>${d ? 'Editar lista' : 'Nuevo mazo'}</h1><p>Pegá la lista del simulador o escribila: una carta por línea, con la cantidad y el número.</p></div></div>
+      <div class="vhead"><div><h1>${d ? 'Editar lista' : 'Nuevo mazo'}</h1><p>${d ? 'Cambiá la lista a mano o sumá cartas mirando las imágenes.' : 'Elegí las cartas mirando las imágenes o pegá la lista del simulador.'}</p></div></div>
       <div class="card">
         <div><label class="flabel" for="ed-name">Nombre</label><input class="field" id="ed-name" maxlength="60" value="${esc(d ? d.name : '')}" placeholder="Ej.: Luffy Morado/Negro"></div>
+        ${d ? '' : `<div class="visual-way">
+          <button type="button" class="btn primary" data-act="visual">${ICONS.cartas}Elegir cartas con imágenes</button>
+          <small>Se abre el índice de cartas: tocá + en cada una que quieras sumar, en la versión que tengas.</small>
+        </div>
+        <div class="or"><span>o pegá una lista</span></div>`}
         <div><label class="flabel" for="ed-list">Lista</label>
-          <textarea class="field" id="ed-list" rows="16" spellcheck="false" autocapitalize="characters" placeholder="1xOP09-061&#10;4xOP09-069&#10;4 ST26-003 Nico Robin">${esc(d ? Decks.toText(d) : '')}</textarea></div>
+          <textarea class="field" id="ed-list" rows="${d ? 14 : 8}" spellcheck="false" autocapitalize="characters" placeholder="1xOP09-061&#10;4xOP09-069&#10;4 ST26-003 Nico Robin">${esc(d ? Decks.toText(d) : '')}</textarea></div>
         <p class="hint">Sirven “4xOP12-034”, “4 OP12-034 Perona” u “OP12-034 x4”. Si una carta aparece dos veces, se suman.</p>
         <div class="check" id="ed-check" aria-live="polite"></div>
+        <div id="ed-preview"></div>
         <div class="vact">
-          <button type="button" class="btn primary" data-act="save">Guardar</button>
+          <button type="button" class="btn${d ? ' primary' : ''}" data-act="save">${d ? 'Guardar' : 'Guardar lista'}</button>
+          ${d ? `<button type="button" class="btn" data-act="visual">${ICONS.cartas}Sumar con imágenes</button>` : ''}
           <button type="button" class="btn ghost" data-act="cancel">Cancelar</button>
         </div>
       </div>`;
     this.check();
+    this.preview();
     if (!d) setTimeout(() => { const n = App.$('#ed-name'); if (n) n.focus(); }, 0);
+  },
+  // cómo queda el mazo, con las imágenes de las cartas que vas escribiendo
+  preview() {
+    const { esc, Prices } = App;
+    const box = App.$('#ed-preview'), ta = App.$('#ed-list');
+    if (!box || !ta) return;
+    const r = Decks.parse(ta.value);
+    const sig = `${r.cards.map(c => `${c.qty}x${c.num}`).join(',')}|${Prices.count}|${App.Cards.list.length}`;
+    if (box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
+    if (!r.cards.length) { box.innerHTML = ''; return; }
+    const picks = new Map((this.deck ? this.deck.cards : []).map(c => [c.num, c.pick]));
+    const leader = r.cards.find(c => CardUI.isLeaderCard(c.num));
+    const cards = leader ? [leader, ...r.cards.filter(c => c !== leader)] : r.cards;
+    box.innerHTML = `<p class="flabel">Así queda</p><div class="cgrid mini">${cards.map(c => {
+      const e = Prices.choose(Prices.options(c.num), picks.get(c.num) || null);
+      const pid = (e && e.pid) || CardUI.basePid(c.num);
+      const nm = Prices.cardName(c.num) || c.num;
+      return `<span class="ctile" title="${esc(`${c.qty}× ${nm} (${c.num})`)}"><span class="cimg">${pid ? CardUI.img(pid, nm) : `<span class="noimg"></span><span class="nonum">${esc(c.num)}</span>`}<span class="qbadge">×${c.qty}</span>${c === leader ? '<span class="lbadge">Líder</span>' : ''}</span></span>`;
+    }).join('')}</div>`;
+  },
+  // guarda lo que haya escrito y abre el índice en modo armado
+  goVisual() {
+    const name = App.$('#ed-name').value.trim();
+    const r = Decks.parse(App.$('#ed-list').value);
+    let deck = this.deck;
+    if (deck) {
+      const picks = new Map(deck.cards.map(c => [c.num, c.pick]));
+      deck.cards = r.cards.map(c => ({ num: c.num, qty: c.qty, pick: picks.get(c.num) || null }));
+      if (name) deck.name = name;
+      Decks.update(deck);
+    } else {
+      deck = Decks.add(Decks.make(name, r.cards));
+    }
+    this.editing = false;
+    App.go('cartas', `mazo:${deck.id}`);
   },
   check() {
     const { esc, Prices, plural } = App;

@@ -361,7 +361,39 @@ select.field { appearance: none; -webkit-appearance: none; padding-right: 34px; 
 .cl-main { grid-template-columns: 34px 40px minmax(0, 1fr) auto; }
 .cl-main .thumb { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; display: block; background: var(--surface-2); }
 .cl-main .noimg.thumb { width: 40px; height: 56px; border-radius: 4px; }
-.opts { padding-left: 84px; }
+.opts { padding-left: 100px; }
+/* versiones alternativas en el índice y en la ficha */
+.vbadge { position: absolute; left: 6px; top: 6px; max-width: calc(100% - 12px); background: rgba(6,14,38,.92); color: var(--accent-2); border: 1px solid var(--accent); font-size: 11px; font-weight: 700; border-radius: 6px; padding: 1px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vtag { margin-left: auto; border: 1px solid var(--accent); color: var(--accent-2); border-radius: 8px; padding: 1px 8px; font-size: 13px; font-weight: 700; }
+.ctile.also .cimg { outline: 2px dashed rgba(216,178,74,.55); outline-offset: 1px; }
+.cqty button:disabled { color: var(--muted); opacity: .45; }
+.fsel.wide { grid-column: 1 / -1; }
+.print.cur { outline: 2px solid var(--accent); }
+.print > a { grid-row: span 2; display: block; }
+.print .pn em { font-style: normal; color: var(--accent-2); font-size: 13px; }
+.indeck small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+/* imagen del líder en la lista de mazos y en el armado */
+.deck.withimg { grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: center; }
+.dimg, .blead { display: block; aspect-ratio: 200 / 279; border-radius: 8px; overflow: hidden; background: var(--surface-2); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.dimg { width: 64px; }
+.blead { width: 40px; flex-shrink: 0; border-radius: 5px; }
+.dimg img, .dimg .noimg, .blead img, .blead .noimg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dinfo { display: grid; gap: 6px; min-width: 0; }
+.builder > div { flex: 1 1 auto; }
+/* editor de la lista */
+.visual-way { display: grid; gap: 6px; justify-items: start; }
+.visual-way small { color: var(--muted); font-size: 14px; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.cgrid.mini { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.cgrid.mini .cimg { border-radius: 6px; }
+.cgrid.mini .qbadge { right: 3px; bottom: 3px; font-size: 12px; padding: 0 5px; border-radius: 6px; }
+.cgrid.mini .lbadge { left: 3px; top: 3px; font-size: 9px; padding: 0 4px; }
+.cgrid.mini .ctile:hover .cimg { outline: 0; }
+.nonum { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--warn); text-align: center; padding: 4px; }
+/* miniaturas un poco más grandes en la lista del mazo */
+.cl-main { grid-template-columns: 34px 46px minmax(0, 1fr) auto; }
+.cl-main .thumb, .cl-main .noimg.thumb { width: 46px; height: 64px; }
 .sortseg { margin-top: -6px; }
 .sortseg button { flex: 0 1 auto; font-size: 14px; min-height: 34px; }
 .seg button svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; }

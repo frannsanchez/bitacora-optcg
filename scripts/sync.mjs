@@ -19,9 +19,26 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const results = j => (Array.isArray(j) ? j : j && Array.isArray(j.results) ? j.results : []);
 const r2 = v => (v === null || v === undefined || v === '' || Number.isNaN(+v) ? null : Math.round(+v * 100) / 100);
 const int = v => (v === null || v === undefined || v === '' || Number.isNaN(parseInt(v, 10)) ? null : parseInt(v, 10));
-// "Monkey.D.Luffy (061) (Parallel)" → "Monkey.D.Luffy"; el "(061)" no es una versión distinta
-const cleanName = n => String(n || '').replace(/\s*\([^)]*\)/g, '').trim() || String(n || '');
-const isBaseName = n => !/\((?!\d+\))[^)]*\)/.test(String(n || ''));
+// Etiquetas entre paréntesis o corchetes del nombre: "Shanks (004) (Alternate Art)" → ["Alternate Art"].
+// El número ("(004)", "(OP09-004)") no cuenta como etiqueta.
+const NUMLIKE = /^(\d+|[A-Z]{1,4}\d{0,2}-?\d{2,3}[A-Z]?)$/i;
+const tagsOf = n => [...String(n || '').matchAll(/\(([^)]*)\)|\[([^\]]*)\]/g)].map(m => (m[1] ?? m[2]).trim()).filter(t => t && !NUMLIKE.test(t));
+// etiquetas que siempre marcan una versión especial (pesan más al elegir la versión común)
+const STRONG = /^(reprint|parallel|alternate art|super rare alternate art|manga|sp|full art|tr|gold|silver|wanted poster|box topper|textured foil|jolly roger foil|pirate foil|jumbo)$/i;
+// Nombre para mostrar: saca el número y las etiquetas de versión, pero deja las que son parte del nombre
+// (por ejemplo "Mr.1 (Daz.Bonez)", que aparece en todas las versiones de esa carta).
+const cleanName = (n, keep = new Set()) => String(n || '')
+  .replace(/\s*\(([^)]*)\)|\s*\[([^\]]*)\]/g, (m, a) => (a != null && keep.has(a.trim()) ? m : ''))
+  .replace(/\s+-\s+[A-Z]{1,4}\d{0,2}-\d{2,3}[A-Z]?\s*$/i, '').trim() || String(n || '');
+// ¿La edición (grupo de TCGplayer) es la original de este número? "ST-10" ↔ ST10-006, "OP15-EB04" ↔ EB04-007.
+// Los grupos con sufijo ("OP18 RE", "OP09 ANN", "OP08 PRE") son versiones de evento.
+function groupScore(abbr, num) {
+  const a = String(abbr || '').toUpperCase().trim();
+  const toks = a.split(/\s+/)[0].replace(/-(?=\d)/g, '').split('-');
+  return (toks.includes(num.split('-')[0]) ? 0 : 2) + (/\s/.test(a) ? 1 : 0);
+}
+// cuanto más bajo, más "común" es la versión
+const versionScore = (name, abbr, num) => tagsOf(name).reduce((s, t) => s + (STRONG.test(t) ? 8 : 4), 0) + groupScore(abbr, num);
 const cleanText = t => String(t || '')
   .replace(/<br\s*\/?>\s*/gi, '\n').replace(/<[^>]+>/g, '')
   .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
@@ -54,7 +71,7 @@ async function main() {
   const grupos = results(await get(`/tcgplayer/${cat.categoryId}/groups`));
   const G = [];
   const cards = [];
-  const meta = new Map(); // número → { score, row } con los datos de la versión más "común"
+  const meta = new Map(); // número → { best: la versión más "común", names: los nombres de todas sus versiones }
 
   for (const g of grupos) {
     await sleep(PAUSA_MS);
@@ -71,19 +88,19 @@ async function main() {
       const ext = Object.fromEntries((p.extendedData || []).map(e => [e.name, e.value]));
       const num = String(ext.Number || '').trim().toUpperCase();
       if (!num) continue; // sin número no es una carta (sobres, cajas, etc.)
-      const score = (isBaseName(p.name) ? 0 : 2) + (g.abbreviation && num.startsWith(String(g.abbreviation).toUpperCase()) ? 0 : 1);
-      const prev = meta.get(num);
-      if (!prev || score < prev.score || (score === prev.score && !prev.row[9] && ext.Description)) {
-        // [nombre, tipo, colores, costo, poder, counter, vida, atributo, subtipos, texto, productId de la imagen]
-        meta.set(num, { score, row: [cleanName(p.name), ext.CardType || '', ext.Color || '', int(ext.Cost), int(ext.Power), int(ext.Counterplus), int(ext.Life), ext.Attribute || '', ext.Subtypes || '', cleanText(ext.Description), p.productId] });
-      }
+      const cand = { score: versionScore(p.name, g.abbreviation, num), pid: p.productId, name: p.name, ext };
+      let m = meta.get(num);
+      if (!m) meta.set(num, (m = { best: null, names: [] }));
+      m.names.push(p.name);
+      const b = m.best;
+      if (!b || cand.score < b.score || (cand.score === b.score && ((!b.ext.Description && ext.Description) || (!!b.ext.Description === !!ext.Description && cand.pid < b.pid)))) m.best = cand;
       const filas = porProducto.get(p.productId) || [{ subTypeName: 'Normal' }];
       for (const x of filas) {
         cards.push([num, p.name, String(ext.Rarity || ''), g.groupId, p.productId, x.subTypeName || 'Normal', r2(x.marketPrice), r2(x.lowPrice), r2(x.midPrice)]);
         n++;
       }
     }
-    if (n) G.push([g.groupId, g.name, g.abbreviation || '']);
+    if (n) G.push([g.groupId, g.name, g.abbreviation || '', String(g.publishedOn || '').slice(0, 10)]);
     console.log(`  ${g.name}: ${n}`);
   }
 
@@ -101,7 +118,15 @@ async function main() {
   await writeFile(OUT, JSON.stringify(data));
   console.log(`Listo: ${cards.length} versiones de cartas en ${G.length} ediciones → ${OUT}`);
 
-  const fichas = Object.fromEntries([...meta.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([n, m]) => [n, m.row]));
+  const fichas = {};
+  for (const [num, m] of [...meta.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    // etiquetas que están en todas las versiones = parte del nombre de la carta
+    const sets = m.names.map(n => new Set(tagsOf(n)));
+    const keep = sets.length > 1 ? new Set([...sets[0]].filter(t => sets.every(s => s.has(t)))) : new Set();
+    const x = m.best.ext;
+    // [nombre, tipo, colores, costo, poder, counter, vida, atributo, subtipos, texto, productId de la versión común]
+    fichas[num] = [cleanName(m.best.name, keep), x.CardType || '', x.Color || '', int(x.Cost), int(x.Power), int(x.Counterplus), int(x.Life), x.Attribute || '', x.Subtypes || '', cleanText(x.Description), m.best.pid];
+  }
   await mkdir(dirname(OUT_CARDS), { recursive: true });
   await writeFile(OUT_CARDS, JSON.stringify({ v: 1, updated: data.updated, cards: fichas }));
   console.log(`Fichas: ${meta.size} cartas distintas → ${OUT_CARDS}`);
